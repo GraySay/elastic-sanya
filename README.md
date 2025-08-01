@@ -1,6 +1,6 @@
 <img width="2159" height="947" alt="image_2025-08-01_03-17-45" src="https://github.com/user-attachments/assets/d345e771-2746-405b-b6ac-86fa2a741cc8" />
 
-## Elastic Sanya
+## Elastic Sanya (https://graysay.github.io/elastic-sanya/)
 
 Elastic Sanya is an interactive 3D web application built with Three.js. It features dynamic sound effects, responsive UI interactions, and visually engaging animations. The project is designed to provide an immersive experience with elastic deformation effects and disco mode.
 
