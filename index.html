@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elastic Sanya</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <button class="sound-button">
+        <div class="image-container">
+            <div class="shine-effect"></div>
+            <img src="assets/UA-Revo.png" alt="Sound Button">
+        </div>
+    </button>
+    <button class="disco-button">🕺</button>
+    <div class="text-overlay">
+        <div class="text-line">
+            <span class="letter" data-letter="I">I</span>
+            <span class="letter" data-letter="L">L</span>
+            <span class="letter" data-letter="C">C</span>
+            <span class="letter" data-letter="H">H</span>
+            <span class="letter" data-letter="U">U</span>
+            <span class="letter" data-letter="K">K</span>
+        </div>
+        <div class="text-line">
+            <span class="letter" data-letter="I">I</span>
+            <span class="letter" data-letter="L">L</span>
+            <span class="letter" data-letter="C">C</span>
+            <span class="letter" data-letter="H">H</span>
+            <span class="letter" data-letter="U">U</span>
+            <span class="letter" data-letter="K">K</span>
+        </div>
+        <div class="text-line">
+            <span class="letter" data-letter="I">I</span>
+            <span class="letter" data-letter="L">L</span>
+            <span class="letter" data-letter="C">C</span>
+            <span class="letter" data-letter="H">H</span>
+            <span class="letter" data-letter="U">U</span>
+            <span class="letter" data-letter="K">K</span>
+        </div>
+    </div>
+    <canvas></canvas>
+    <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.156.1/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.156.1/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
