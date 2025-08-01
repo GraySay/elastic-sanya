@@ -32,6 +32,17 @@ export class SoundService {
             // Disco background sound
             this.discoSound = this.createSound('assets/disco.mp3');
             this.discoSound.loop = true;
+            // Unlock HTMLAudio on first user interaction to avoid NotAllowedError
+            this.audioUnlocked = false;
+            const unlockAudio = () => {
+                this.discoSound.play().then(() => {
+                    this.discoSound.pause();
+                }).catch(() => {}).finally(() => {
+                    this.audioUnlocked = true;
+                });
+            };
+            document.addEventListener('click', unlockAudio, { once: true, passive: false });
+            document.addEventListener('touchstart', unlockAudio, { once: true, passive: false });
             // Listen for disco mode toggle
             EventBus.on('discoModeToggle', this.handleDiscoMode.bind(this));
         }
