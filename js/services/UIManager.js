@@ -15,12 +15,23 @@ export class UIManager {
     }
 
     addEventListeners() {
-        window.addEventListener('mousemove', this.onMouseMove.bind(this));
-        window.addEventListener('mousedown', this.onMouseDown.bind(this));
-        window.addEventListener('mouseup', this.onMouseUp.bind(this));
+        window.addEventListener('mousemove', (e) => this.onMouseMove(e));
+        window.addEventListener('mousedown', (e) => this.onMouseDown(e));
+        window.addEventListener('mouseup', () => this.onMouseUp());
         window.addEventListener('touchstart', (e) => this.onMouseDown(e), { passive: true });
         window.addEventListener('touchmove', (e) => this.onMouseMove(e), { passive: true });
         window.addEventListener('touchend', this.onMouseUp.bind(this));
+        
+        // Special handler for disco button on mobile
+        this.discoButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const touch = e.changedTouches[0];
+            const rect = this.discoButton.getBoundingClientRect();
+            if (this.isInside(touch.clientX, touch.clientY, rect)) {
+                this.toggleDiscoMode();
+            }
+        }, { passive: false });
     }
 
     onMouseMove(event) {
@@ -46,7 +57,8 @@ export class UIManager {
         if (this.hoveredUIElement === this.soundButton) {
             EventBus.emit('soundButtonClick');
             this.soundButton.classList.add('active-imitation');
-        } else if (this.hoveredUIElement === this.discoButton) {
+        } else if (this.hoveredUIElement === this.discoButton && !event.touches) {
+            
             this.toggleDiscoMode();
         } else {
             EventBus.emit('mouseDown', { event, mouse: this.mouse });
@@ -55,6 +67,11 @@ export class UIManager {
 
     onMouseUp() {
         this.soundButton.classList.remove('active-imitation');
+        // Clear hovered element on touch end to reset hover states
+        if (this.hoveredUIElement && this.hoveredUIElement.classList.contains('letter')) {
+            this.handleMouseLeave(this.hoveredUIElement);
+            this.hoveredUIElement = null;
+        }
         EventBus.emit('mouseUp');
     }
 
@@ -167,4 +184,5 @@ export class UIManager {
             });
         }
     }
+
 }
