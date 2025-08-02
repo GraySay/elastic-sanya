@@ -6,21 +6,75 @@ export class UIManager {
     constructor() {
         this.soundButton = document.querySelector('.sound-button');
         this.discoButton = document.querySelector('.disco-button');
+        this.modelSwitchButton = document.querySelector('.model-switch-button');
         this.letters = document.querySelectorAll('.letter');
         this.hoveredUIElement = null;
         this.isDiscoMode = false;
+        this.isModelSwitchActive = false;
+        this.isModelSwitching = false;
         this.mouse = new THREE.Vector2();
+        
+        // Pre-cache HSL colors to avoid expensive calculations
+        this.colorCache = [];
+        this.initColorCache();
 
         this.addEventListeners();
+        this.addModelSwitchListeners();
+    }
+
+    initColorCache() {
+        // Pre-calculate 360 HSL colors to avoid runtime calculations
+        for (let i = 0; i < 360; i++) {
+            const hue = i / 360;
+            this.colorCache.push(`hsl(${i}, 100%, 50%)`);
+        }
+    }
+
+    addModelSwitchListeners() {
+        // Listen to model switch events to prevent multiple clicks during loading
+        EventBus.on('modelSwitchStart', () => {
+            this.isModelSwitching = true;
+        });
+        
+        EventBus.on('modelSwitchComplete', () => {
+            this.isModelSwitching = false;
+        });
+        
+        EventBus.on('modelSwitchError', () => {
+            this.isModelSwitching = false;
+        });
     }
 
     addEventListeners() {
-        window.addEventListener('mousemove', this.onMouseMove.bind(this));
-        window.addEventListener('mousedown', this.onMouseDown.bind(this));
-        window.addEventListener('mouseup', this.onMouseUp.bind(this));
+        window.addEventListener('mousemove', (e) => this.onMouseMove(e));
+        window.addEventListener('mousedown', (e) => this.onMouseDown(e));
+        window.addEventListener('mouseup', () => this.onMouseUp());
         window.addEventListener('touchstart', (e) => this.onMouseDown(e), { passive: true });
         window.addEventListener('touchmove', (e) => this.onMouseMove(e), { passive: true });
         window.addEventListener('touchend', this.onMouseUp.bind(this));
+        
+        // Special handler for disco button on mobile
+        this.discoButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const touch = e.changedTouches[0];
+            const rect = this.discoButton.getBoundingClientRect();
+            if (this.isInside(touch.clientX, touch.clientY, rect)) {
+                this.toggleDiscoMode();
+            }
+        }, { passive: false });
+        
+        // Special handler for model switch button on mobile
+        this.modelSwitchButton.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.isModelSwitching) return; // Prevent multiple clicks during model loading
+            const touch = e.changedTouches[0];
+            const rect = this.modelSwitchButton.getBoundingClientRect();
+            if (this.isInside(touch.clientX, touch.clientY, rect)) {
+                this.toggleModelSwitchMode();
+            }
+        }, { passive: false });
     }
 
     onMouseMove(event) {
@@ -46,8 +100,12 @@ export class UIManager {
         if (this.hoveredUIElement === this.soundButton) {
             EventBus.emit('soundButtonClick');
             this.soundButton.classList.add('active-imitation');
-        } else if (this.hoveredUIElement === this.discoButton) {
+        } else if (this.hoveredUIElement === this.discoButton && !event.touches) {
+            
             this.toggleDiscoMode();
+        } else if (this.hoveredUIElement === this.modelSwitchButton) {
+            if (this.isModelSwitching) return; // Prevent multiple clicks during model loading
+            this.toggleModelSwitchMode();
         } else {
             EventBus.emit('mouseDown', { event, mouse: this.mouse });
         }
@@ -55,6 +113,11 @@ export class UIManager {
 
     onMouseUp() {
         this.soundButton.classList.remove('active-imitation');
+        // Clear hovered element on touch end to reset hover states
+        if (this.hoveredUIElement && this.hoveredUIElement.classList.contains('letter')) {
+            this.handleMouseLeave(this.hoveredUIElement);
+            this.hoveredUIElement = null;
+        }
         EventBus.emit('mouseUp');
     }
 
@@ -72,6 +135,22 @@ export class UIManager {
         }
     }
 
+    toggleModelSwitchMode() {
+        this.isModelSwitchActive = !this.isModelSwitchActive;
+        this.modelSwitchButton.classList.toggle('active', this.isModelSwitchActive);
+        
+        if (this.isModelSwitchActive) {
+            // Play PSX sound when becoming active
+            EventBus.emit('playPsxSound');
+        } else {
+            // Stop PSX sound when becoming inactive
+            EventBus.emit('stopPsxSound');
+        }
+        
+        // Always emit model switch event
+        EventBus.emit('modelSwitch');
+    }
+
     checkUIInteraction(x, y) {
         let newHoveredElement = null;
         let cursorStyle = 'grab';
@@ -85,6 +164,12 @@ export class UIManager {
         const discoButtonRect = this.discoButton.getBoundingClientRect();
         if (this.isInside(x, y, discoButtonRect)) {
             newHoveredElement = this.discoButton;
+            cursorStyle = 'pointer';
+        }
+
+        const modelSwitchButtonRect = this.modelSwitchButton.getBoundingClientRect();
+        if (this.isInside(x, y, modelSwitchButtonRect)) {
+            newHoveredElement = this.modelSwitchButton;
             cursorStyle = 'pointer';
         }
 
@@ -127,6 +212,8 @@ export class UIManager {
     handleMouseEnter(element) {
         if (element === this.soundButton) {
             element.querySelector('.image-container').classList.add('hover-imitation');
+        } else if (element === this.modelSwitchButton) {
+            // CSS handles hover effects, no JavaScript needed
         } else if (element.classList.contains('letter')) {
             // Only apply hover effect to letters I, L, U, K
             const letter = element.dataset.letter;
@@ -139,6 +226,8 @@ export class UIManager {
     handleMouseLeave(element) {
         if (element === this.soundButton) {
             element.querySelector('.image-container').classList.remove('hover-imitation');
+        } else if (element === this.modelSwitchButton) {
+            // CSS handles hover effects, no JavaScript needed
         } else if (element.classList.contains('letter')) {
             element.classList.remove('hovered');
         }
@@ -152,7 +241,8 @@ export class UIManager {
         if (this.isDiscoMode) {
             this.letters.forEach((letter, index) => {
                 const hue = (time * CONFIG.DISCO_LETTER_HUE_SPEED + index * 0.1) % 1;
-                const color = `hsl(${hue * 360}, 100%, 50%)`;
+                const colorIndex = Math.round(hue * 359); // Use pre-cached colors
+                const color = this.colorCache[colorIndex];
                 letter.style.color = color;
                 letter.style.textShadow = `0 0 10px ${color}, 0 0 20px ${color}`;
                 letter.style.filter = 'brightness(1.5)';
@@ -167,4 +257,5 @@ export class UIManager {
             });
         }
     }
+
 }

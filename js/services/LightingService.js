@@ -13,6 +13,10 @@ export class LightingService {
         this.currentIntensity = 0;
         this.targetIntensity = 0;
         this.mouse = new THREE.Vector2();
+        
+        // Cache colors to avoid constant shader recompilation
+        this.colorCache = new Map();
+        this.lastHue = -1;
 
         this.setupLights();
 
@@ -75,7 +79,18 @@ export class LightingService {
         if (this.isDiscoMode) {
             this.targetIntensity = CONFIG.DISCO_LIGHT_INTENSITY;
             const hue = (time * CONFIG.DISCO_LIGHT_HUE_SPEED) % 1;
-            this.targetColor.setHSL(hue, 1.0, 0.5);
+            
+            // Cache colors to avoid shader recompilation
+            const hueKey = Math.round(hue * 360); // Round to nearest degree
+            if (hueKey !== this.lastHue) {
+                if (!this.colorCache.has(hueKey)) {
+                    const cachedColor = new THREE.Color();
+                    cachedColor.setHSL(hue, 1.0, 0.5);
+                    this.colorCache.set(hueKey, cachedColor);
+                }
+                this.targetColor.copy(this.colorCache.get(hueKey));
+                this.lastHue = hueKey;
+            }
 
             const t = time * CONFIG.DISCO_LIGHT_MOVE_SPEED;
             const radius = 5;

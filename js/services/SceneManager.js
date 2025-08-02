@@ -25,6 +25,7 @@ export class SceneManager {
         this.renderer.toneMappingExposure = 1.5;
         this.renderer.outputEncoding = THREE.sRGBEncoding;
         this.renderer.setClearColor(0x000000, 0);
+        this.optimized = false;
     }
 
     setupCamera() {
@@ -50,6 +51,11 @@ export class SceneManager {
     }
 
     render() {
+        // Force WebGL state optimization after initial frames
+        if (!this.optimized && performance.now() > 5000) {
+            this.renderer.compile(this.scene, this.camera);
+            this.optimized = true;
+        }
         this.renderer.render(this.scene, this.camera);
     }
 }

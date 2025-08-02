@@ -1,8 +1,10 @@
 export const CONFIG = {
     MODEL_PATH: 'assets/0.glb',
+    MODEL_PATH_1K: 'assets/1k.glb',
     SOUNDS: {
         BURP: 'assets/otryijka.mp3',
-        GAG: 'assets/rvotnyiy-pozyiv.mp3'
+        GAG: 'assets/rvotnyiy-pozyiv.mp3',
+        PSX: 'assets/psx.mp3'
     },
     CLICK_THRESHOLD: 500,
     CLICKS_FOR_GAG: 3,

@@ -7,9 +7,12 @@ export class SoundService {
         // Existing sound logic
         this.burpSound = this.createSound(CONFIG.SOUNDS.BURP);
         this.gagSound = this.createSound(CONFIG.SOUNDS.GAG);
+        this.psxSound = this.createSound(CONFIG.SOUNDS.PSX);
         this.clickCount = 0;
         this.lastClickTime = 0;
         EventBus.on('soundButtonClick', this.handleSoundButtonClick.bind(this));
+        EventBus.on('playPsxSound', this.playPsxSound.bind(this));
+        EventBus.on('stopPsxSound', this.stopPsxSound.bind(this));
 
         // New interaction sound logic
         this.camera = camera;
@@ -32,6 +35,24 @@ export class SoundService {
             // Disco background sound
             this.discoSound = this.createSound('assets/disco.mp3');
             this.discoSound.loop = true;
+            // Unlock HTMLAudio on first user interaction to avoid NotAllowedError
+            this.audioUnlocked = false;
+            this.isFirstDiscoActivation = true;
+            const unlockAudio = (e) => {
+                // Don't interfere if this is disco button click
+                if (e.target && e.target.closest('.disco-button')) {
+                    this.audioUnlocked = true;
+                    return;
+                }
+                
+                this.discoSound.play().then(() => {
+                    this.discoSound.pause();
+                }).catch(() => {}).finally(() => {
+                    this.audioUnlocked = true;
+                });
+            };
+            document.addEventListener('click', unlockAudio, { once: true, passive: false });
+            document.addEventListener('touchstart', unlockAudio, { once: true, passive: false });
             // Listen for disco mode toggle
             EventBus.on('discoModeToggle', this.handleDiscoMode.bind(this));
         }
@@ -137,11 +158,40 @@ export class SoundService {
     // Handle disco mode toggle: play or stop disco background sound
     handleDiscoMode(isActive) {
         if (!this.discoSound) return;
+        
         if (isActive) {
-            this.discoSound.play().catch(e => console.error('Disco sound failed:', e));
+            // Handle first activation specially to avoid conflicts with unlock
+            if (this.isFirstDiscoActivation && !this.audioUnlocked) {
+                // Wait a bit to avoid conflict with unlock audio
+                setTimeout(() => {
+                    this.discoSound.currentTime = 0;
+                    this.discoSound.play().catch(e => console.error('Disco sound failed:', e));
+                }, 100);
+                this.isFirstDiscoActivation = false;
+            } else {
+                this.discoSound.currentTime = 0;
+                this.discoSound.play().catch(e => console.error('Disco sound failed:', e));
+            }
         } else {
             this.discoSound.pause();
             this.discoSound.currentTime = 0;
+        }
+    }
+
+    // Play PSX sound when model switch button becomes active
+    playPsxSound() {
+        if (this.psxSound) {
+            this.psxSound.pause();
+            this.psxSound.currentTime = 0;
+            this.psxSound.play().catch(e => console.error('PSX sound failed:', e));
+        }
+    }
+
+    // Stop PSX sound when model switch button becomes inactive
+    stopPsxSound() {
+        if (this.psxSound) {
+            this.psxSound.pause();
+            this.psxSound.currentTime = 0;
         }
     }
 }

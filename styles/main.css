@@ -79,10 +79,11 @@ canvas {
     pointer-events: auto; /* Changed to auto */
     cursor: pointer;
 }
-.disco-button {
+/* Common styles for round buttons */
+.disco-button,
+.model-switch-button {
     position: fixed;
     top: 20px;
-    left: 20px;
     width: 50px;
     height: 50px;
     border-radius: 50%;
@@ -93,23 +94,68 @@ canvas {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 3; /* bring disco button above canvas */
-    pointer-events: auto; /* Changed to auto */
+    z-index: 3;
+    pointer-events: auto;
     cursor: pointer;
     transition: background-color 0.3s, transform 0.1s, box-shadow 0.3s;
     user-select: none;
 }
-/* Hover effect for disco button */
-.disco-button:hover {
+
+.disco-button {
+    left: 20px;
+}
+
+.model-switch-button {
+    right: 20px;
+}
+
+/* Common hover effect for both buttons */
+.disco-button:hover,
+.model-switch-button:hover {
     background-color: #555;
     box-shadow: 0 0 10px #fff, 0 0 20px #fff;
     transform: scale(1.1);
 }
+
+/* Active states */
 .disco-button.active {
     background-color: #ff00ff;
     border-color: #ff00ff;
     box-shadow: 0 0 20px #ff00ff, 0 0 40px #ff00ff;
 }
+
+.model-switch-button.active {
+    background-color: #0066ff;
+    border-color: #0066ff;
+    box-shadow: 0 0 20px #0066ff, 0 0 40px #0066ff;
+}
+
+.model-switch-button.active:hover {
+    background-color: #0088ff;
+    border-color: #0088ff;
+    box-shadow: 0 0 25px #0088ff, 0 0 50px #0088ff;
+    transform: scale(1.1);
+}
+
+/* Specific styles for model switch button image */
+.model-switch-button .image-container {
+    mask-image: none;
+    -webkit-mask-image: none;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.model-switch-button img {
+    width: 80%;
+    height: 80%;
+    object-fit: contain;
+    transition: all 0.3s ease;
+    display: block;
+}
+
 .image-container {
     position: relative;
     width: 100%;
@@ -165,6 +211,7 @@ canvas {
         left: 150%;
     }
 }
+
 .sound-button.active-imitation {
     transform: scale(0.9);
 }
