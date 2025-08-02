@@ -63,6 +63,7 @@ export class UIManager {
                 this.toggleDiscoMode();
             }
         }, { passive: false });
+<<<<<<< HEAD
         
         // Special handler for model switch button on mobile
         this.modelSwitchButton.addEventListener('touchend', (e) => {
@@ -75,6 +76,8 @@ export class UIManager {
                 this.toggleModelSwitchMode();
             }
         }, { passive: false });
+=======
+>>>>>>> 0340c45eb88f978e99b72a10e93b46b5c074ccb4
     }
 
     onMouseMove(event) {
