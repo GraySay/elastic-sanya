@@ -52,32 +52,6 @@ export class UIManager {
         window.addEventListener('touchstart', (e) => this.onMouseDown(e), { passive: true });
         window.addEventListener('touchmove', (e) => this.onMouseMove(e), { passive: true });
         window.addEventListener('touchend', this.onMouseUp.bind(this));
-        
-        // Special handler for disco button on mobile
-        this.discoButton.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const touch = e.changedTouches[0];
-            const rect = this.discoButton.getBoundingClientRect();
-            if (this.isInside(touch.clientX, touch.clientY, rect)) {
-                this.toggleDiscoMode();
-            }
-        }, { passive: false });
-<<<<<<< HEAD
-        
-        // Special handler for model switch button on mobile
-        this.modelSwitchButton.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (this.isModelSwitching) return; // Prevent multiple clicks during model loading
-            const touch = e.changedTouches[0];
-            const rect = this.modelSwitchButton.getBoundingClientRect();
-            if (this.isInside(touch.clientX, touch.clientY, rect)) {
-                this.toggleModelSwitchMode();
-            }
-        }, { passive: false });
-=======
->>>>>>> 0340c45eb88f978e99b72a10e93b46b5c074ccb4
     }
 
     onMouseMove(event) {
