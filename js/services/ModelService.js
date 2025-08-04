@@ -44,15 +44,17 @@ export class ModelService {
                         }
 
                         const material = child.material;
-                        material.metalness = 0;
-                        material.roughness = 0.35;
-                        material.envMapIntensity = 2;
-                        material.lightMap = null;
+                        material.metalness = 0.1; // Минимальный металлический эффект для натуральности
+                        material.roughness = 0.4; // Умеренная шероховатость для натурального глянца
+                        material.envMapIntensity = 1.2; // Умеренные отражения для блеска
                         material.aoMapIntensity = 1.0;
-                        material.transparent = true;
-                        material.opacity = 1;
-                        child.castShadow = true;
-                        child.receiveShadow = true;
+                        
+                        // Оставляем dithering для предотвращения banding
+                        material.dithering = true;
+                        
+                        // Отключаем тени для уменьшения резких переходов
+                        child.castShadow = false;
+                        child.receiveShadow = false;
                     }
                 });
                 EventBus.emit('modelLoaded', { 
@@ -147,15 +149,17 @@ export class ModelService {
                         }
 
                         const material = child.material;
-                        material.metalness = 0;
-                        material.roughness = 0.35;
-                        material.envMapIntensity = 2;
-                        material.lightMap = null;
+                        material.metalness = 0.1; // Минимальный металлический эффект для натуральности
+                        material.roughness = 0.4; // Умеренная шероховатость для натурального глянца
+                        material.envMapIntensity = 1.2; // Умеренные отражения для блеска
                         material.aoMapIntensity = 1.0;
-                        material.transparent = true;
-                        material.opacity = 1;
-                        child.castShadow = true;
-                        child.receiveShadow = true;
+                        
+                        // Оставляем dithering для предотвращения banding
+                        material.dithering = true;
+                        
+                        // Отключаем тени для уменьшения резких переходов
+                        child.castShadow = false;
+                        child.receiveShadow = false;
                     }
                 });
                 

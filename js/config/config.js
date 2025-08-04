@@ -1,6 +1,6 @@
 export const CONFIG = {
-    MODEL_PATH: 'assets/0.glb',
-    MODEL_PATH_1K: 'assets/1k.glb',
+    MODEL_PATH: 'assets/10k.glb',
+    MODEL_PATH_1K: 'assets/500.glb',
     SOUNDS: {
         BURP: 'assets/otryijka.mp3',
         GAG: 'assets/rvotnyiy-pozyiv.mp3',
@@ -21,7 +21,7 @@ export const CONFIG = {
     AMBIENT_LIGHT_INTENSITY: 1.2,
     MAIN_LIGHT_INTENSITY: 1.6,
     DYNAMIC_LIGHT_INTENSITY: 100,
-    DISCO_LIGHT_INTENSITY: 150,
+    DISCO_LIGHT_INTENSITY: 100,
     DISCO_LIGHT_HUE_SPEED: 0.0003,
     DISCO_LIGHT_MOVE_SPEED: 0.001,
     DISCO_LETTER_HUE_SPEED: 0.0002,

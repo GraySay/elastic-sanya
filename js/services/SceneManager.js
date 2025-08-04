@@ -22,9 +22,10 @@ export class SceneManager {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.5;
-        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        this.renderer.toneMappingExposure = 1.4;
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.renderer.setClearColor(0x000000, 0);
+        
         this.optimized = false;
     }
 

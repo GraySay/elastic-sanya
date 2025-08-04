@@ -80,7 +80,7 @@ export class UIManager {
         } else if (this.hoveredUIElement === this.discoButton && !event.touches) {
             
             this.toggleDiscoMode();
-        } else if (this.hoveredUIElement === this.modelSwitchButton) {
+        } else if (this.hoveredUIElement === this.modelSwitchButton && !event.touches) {
             if (this.isModelSwitching) return; // Prevent multiple clicks during model loading
             this.toggleModelSwitchMode();
         } else {
