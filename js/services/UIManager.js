@@ -192,9 +192,9 @@ export class UIManager {
         } else if (element === this.modelSwitchButton) {
             // CSS handles hover effects, no JavaScript needed
         } else if (element.classList.contains('letter')) {
-            // Only apply hover effect to letters I, L, U, K
+            // Only apply hover effect to letters S, A, C, H
             const letter = element.dataset.letter;
-            if (['I', 'L', 'U', 'K'].includes(letter)) {
+            if (['S', 'A', 'C', 'H'].includes(letter)) {
                 element.classList.add('hovered');
             }
         }

@@ -11,6 +11,7 @@ export class ElasticDeformationService {
         this.lastDeformTime = 0;
         this.elasticMeshes = [];
         this.originalVertices = new Map();
+        this.activeAnimations = new Set(); // Для отслеживания активных анимаций
 
         this.tempVectors = {
             vertex: new THREE.Vector3(),
@@ -34,6 +35,9 @@ export class ElasticDeformationService {
 
     handleMouseDown({ event, mouse }) {
         if (this.elasticMeshes.length > 0) {
+            // Остановить все активные анимации возврата
+            this.stopAllReturnAnimations();
+            
             this.raycaster.setFromCamera(mouse, this.camera);
             const intersects = this.raycaster.intersectObjects(this.elasticMeshes, true);
             if (intersects.length > 0) {
@@ -123,7 +127,18 @@ export class ElasticDeformationService {
         });
     }
 
+    stopAllReturnAnimations() {
+        // Остановить все активные анимации возврата
+        this.activeAnimations.forEach(animationId => {
+            cancelAnimationFrame(animationId);
+        });
+        this.activeAnimations.clear();
+    }
+
     animateElasticReturn() {
+        // Остановить предыдущие анимации перед началом новой
+        this.stopAllReturnAnimations();
+        
         this.elasticMeshes.forEach(mesh => {
             if (!mesh.geometry.isBufferGeometry) return;
 
@@ -172,7 +187,8 @@ export class ElasticDeformationService {
                 positions.needsUpdate = true;
 
                 if (hasChanges) {
-                    requestAnimationFrame(returnAnimation);
+                    const animationId = requestAnimationFrame(returnAnimation);
+                    this.activeAnimations.add(animationId);
                 } else {
                     positions.copyArray(originalPos);
                     positions.needsUpdate = true;
@@ -180,7 +196,8 @@ export class ElasticDeformationService {
                 }
             };
 
-            returnAnimation();
+            const initialAnimationId = requestAnimationFrame(returnAnimation);
+            this.activeAnimations.add(initialAnimationId);
         });
     }
 }
