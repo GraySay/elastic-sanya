@@ -6,6 +6,7 @@ Elastic Sanya is an interactive 3D web application built with Three.js. It featu
 
 ## Project Structure
 <img width="480" height="272" alt="image" src="https://github.com/user-attachments/assets/77be5f37-3817-4bd4-b7b8-200569074bd5" />
+
 - `index.html`: Main HTML file.
 - `styles/main.css`: CSS for styling and animations.
 - `js/`: Contains all JavaScript files for services and application logic.
