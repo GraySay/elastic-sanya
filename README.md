@@ -1,4 +1,4 @@
-<img width="2159" height="947" alt="image_2025-08-01_03-17-45" src="https://github.com/user-attachments/assets/d345e771-2746-405b-b6ac-86fa2a741cc8" />
+<img width="2491" height="1108" alt="image" src="https://github.com/user-attachments/assets/a851bc35-f827-48d2-8278-18c213d3486a" />
 
 ## Elastic Sanya (https://graysay.github.io/elastic-sanya/)
 
