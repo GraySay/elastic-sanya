@@ -6,6 +6,7 @@ import { LightingService } from './services/LightingService.js';
 import { ModelService } from './services/ModelService.js';
 import { ElasticDeformationService } from './services/ElasticDeformationService.js';
 import { UIManager } from './services/UIManager.js';
+import { CONFIG } from './config/config.js';
 
 class ElasticSanyaApp {
     constructor() {
@@ -40,20 +41,20 @@ class ElasticSanyaApp {
                 const px = (mouse.x + 1) / 2 * window.innerWidth;
                 const py = (-mouse.y + 1) / 2 * window.innerHeight;
                 if (!this.stretchTriggered) {
-                    // initial stretch when moved 50px
+                    // initial stretch when moved threshold distance
                     const dx = px - this.startMouse.x;
                     const dy = py - this.startMouse.y;
-                    if (Math.hypot(dx, dy) >= 50) {
+                    if (Math.hypot(dx, dy) >= CONFIG.STRETCH_INITIAL_THRESHOLD) {
                         this.soundService.startStretch();
                         this.stretchTriggered = true;
                         this.lastTrigger.x = px;
                         this.lastTrigger.y = py;
                     }
                 } else {
-                    // subsequent stretch when moved additional 100px
+                    // subsequent stretch when moved additional distance
                     const dx = px - this.lastTrigger.x;
                     const dy = py - this.lastTrigger.y;
-                    if (Math.hypot(dx, dy) >= 100) {
+                    if (Math.hypot(dx, dy) >= CONFIG.STRETCH_SUBSEQUENT_THRESHOLD) {
                         this.soundService.startStretch();
                         this.lastTrigger.x = px;
                         this.lastTrigger.y = py;
@@ -81,7 +82,7 @@ class ElasticSanyaApp {
                 const cx = window.innerWidth / 2;
                 const cy = window.innerHeight / 2;
                 const dist = Math.hypot(px - cx, py - cy);
-                if (dist >= 300) {
+                if (dist >= CONFIG.RELEASE_DISTANCE_THRESHOLD) {
                     // play release
                     this.soundService.stopStretch();
                 } else {

@@ -153,7 +153,7 @@ export class ElasticDeformationService {
 
             const returnAnimation = () => {
                 let hasChanges = false;
-                const velocityThreshold = 0.001;
+                const velocityThreshold = CONFIG.VELOCITY_THRESHOLD;
 
                 const { currentPos: currentVec, vertex: targetVec } = this.tempVectors;
 
@@ -177,7 +177,7 @@ export class ElasticDeformationService {
                     const velocityMagnitude = Math.abs(mesh.vertexVelocities[vIdx]) + Math.abs(mesh.vertexVelocities[vIdx + 1]) + Math.abs(mesh.vertexVelocities[vIdx + 2]);
                     const distanceToTarget = Math.abs(currentVec.x - targetVec.x) + Math.abs(currentVec.y - targetVec.y) + Math.abs(currentVec.z - targetVec.z);
 
-                    if (velocityMagnitude > velocityThreshold || distanceToTarget > 0.001) {
+                    if (velocityMagnitude > velocityThreshold || distanceToTarget > CONFIG.DISTANCE_THRESHOLD) {
                         hasChanges = true;
                     }
 

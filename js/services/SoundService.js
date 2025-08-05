@@ -60,12 +60,12 @@ export class SoundService {
 
     loadInteractionSounds() {
         // Load stretch sounds
-        for (let i = 1; i <= 5; i++) {
+        for (let i = 1; i <= CONFIG.STRETCH_SOUND_COUNT; i++) {
             this.audioLoader.load(`assets/stretch${i}.mp3`, (buffer) => {
                 const sound = new THREE.Audio(this.listener);
                 sound.setBuffer(buffer);
                 sound.setLoop(false);
-                sound.setVolume(0.5);
+                sound.setVolume(CONFIG.STRETCH_SOUND_VOLUME);
                 this.stretchSounds.push(sound);
             });
         }
@@ -166,7 +166,7 @@ export class SoundService {
                 setTimeout(() => {
                     this.discoSound.currentTime = 0;
                     this.discoSound.play().catch(e => console.error('Disco sound failed:', e));
-                }, 100);
+                }, CONFIG.AUDIO_UNLOCK_DELAY);
                 this.isFirstDiscoActivation = false;
             } else {
                 this.discoSound.currentTime = 0;

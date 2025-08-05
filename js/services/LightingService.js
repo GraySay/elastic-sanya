@@ -30,14 +30,21 @@ export class LightingService {
         this.scene.add(ambientLight);
 
         const mainLight = new THREE.DirectionalLight(0xffffff, CONFIG.MAIN_LIGHT_INTENSITY);
-        mainLight.position.set(5, 5, 5);
+        mainLight.position.set(CONFIG.MAIN_LIGHT_POSITION, CONFIG.MAIN_LIGHT_POSITION, CONFIG.MAIN_LIGHT_POSITION);
         mainLight.castShadow = true;
         this.scene.add(mainLight);
 
-        this.dynamicLight = new THREE.SpotLight(0xffffff, 0, 20, Math.PI / 4, 0.1, 1.5);
+        this.dynamicLight = new THREE.SpotLight(
+            0xffffff, 
+            0, 
+            CONFIG.SPOTLIGHT_DISTANCE, 
+            CONFIG.SPOTLIGHT_ANGLE, 
+            CONFIG.SPOTLIGHT_PENUMBRA, 
+            CONFIG.SPOTLIGHT_DECAY
+        );
         this.dynamicLight.castShadow = true;
-        this.dynamicLight.shadow.mapSize.width = 1024;
-        this.dynamicLight.shadow.mapSize.height = 1024;
+        this.dynamicLight.shadow.mapSize.width = CONFIG.SHADOW_MAP_SIZE;
+        this.dynamicLight.shadow.mapSize.height = CONFIG.SHADOW_MAP_SIZE;
         this.dynamicLight.target = new THREE.Object3D();
         this.scene.add(this.dynamicLight.target);
         this.scene.add(this.dynamicLight);
@@ -81,11 +88,12 @@ export class LightingService {
             const hue = (time * CONFIG.DISCO_LIGHT_HUE_SPEED) % 1;
             
             // Cache colors to avoid shader recompilation
-            const hueKey = Math.round(hue * 360); // Round to nearest degree
+            // Round to nearest degree
+            const hueKey = Math.round(hue * CONFIG.COLOR_CACHE_MAX);
             if (hueKey !== this.lastHue) {
                 if (!this.colorCache.has(hueKey)) {
                     const cachedColor = new THREE.Color();
-                    cachedColor.setHSL(hue, 1.0, 0.5);
+                    cachedColor.setHSL(hue, CONFIG.LIGHT_SATURATION, CONFIG.LIGHT_BRIGHTNESS);
                     this.colorCache.set(hueKey, cachedColor);
                 }
                 this.targetColor.copy(this.colorCache.get(hueKey));
@@ -93,31 +101,32 @@ export class LightingService {
             }
 
             const t = time * CONFIG.DISCO_LIGHT_MOVE_SPEED;
-            const radius = 5;
+            const radius = CONFIG.DISCO_LIGHT_RADIUS;
             this.dynamicLight.position.x = Math.sin(t) * radius;
             this.dynamicLight.position.y = Math.cos(t) * radius;
-            this.dynamicLight.position.z = 4 + Math.sin(t * 2) * 1.5;
-            this.dynamicLight.target.position.set(0, 0, 1);
+            this.dynamicLight.position.z = CONFIG.LIGHT_Z_POSITION + Math.sin(t * 2) * CONFIG.LIGHT_Z_ANIMATION;
+            this.dynamicLight.target.position.set(0, 0, CONFIG.TARGET_Z_POSITION);
             this.isAnimatingLight = true;
+            
         }
 
-        this.currentIntensity += (this.targetIntensity - this.currentIntensity) * 0.1;
+        this.currentIntensity += (this.targetIntensity - this.currentIntensity) * CONFIG.LIGHT_LERP_FACTOR;
         this.dynamicLight.intensity = this.currentIntensity;
 
-        if (this.currentIntensity < 0.01 && !this.isDiscoMode) {
+        if (this.currentIntensity < CONFIG.LIGHT_INTENSITY_THRESHOLD && !this.isDiscoMode) {
             this.isAnimatingLight = false;
             return;
         }
 
         if (!this.isDiscoMode && this.isAnimatingLight) {
             this.targetColor.set(0xffffff);
-            this.dynamicLight.position.x = this.mouse.x * 5;
-            this.dynamicLight.position.y = this.mouse.y * 5;
-            this.dynamicLight.position.z = 4;
-            this.dynamicLight.target.position.set(0, 0, 1);
+            this.dynamicLight.position.x = this.mouse.x * CONFIG.MOUSE_LIGHT_MULTIPLIER;
+            this.dynamicLight.position.y = this.mouse.y * CONFIG.MOUSE_LIGHT_MULTIPLIER;
+            this.dynamicLight.position.z = CONFIG.LIGHT_Z_POSITION;
+            this.dynamicLight.target.position.set(0, 0, CONFIG.TARGET_Z_POSITION);
         }
 
-        this.currentColor.lerp(this.targetColor, 0.1);
+        this.currentColor.lerp(this.targetColor, CONFIG.LIGHT_LERP_FACTOR);
         this.dynamicLight.color.copy(this.currentColor);
     }
 }

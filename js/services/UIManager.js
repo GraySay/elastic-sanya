@@ -14,6 +14,10 @@ export class UIManager {
         this.isModelSwitching = false;
         this.mouse = new THREE.Vector2();
         
+        // Оптимизация для disco mode
+        this.lastLetterUpdate = 0;
+        this.wasDiscoMode = false;
+        
         // Pre-cache HSL colors to avoid expensive calculations
         this.colorCache = [];
         this.initColorCache();
@@ -23,10 +27,16 @@ export class UIManager {
     }
 
     initColorCache() {
-        // Pre-calculate 360 HSL colors to avoid runtime calculations
-        for (let i = 0; i < 360; i++) {
-            const hue = i / 360;
-            this.colorCache.push(`hsl(${i}, 100%, 50%)`);
+        // Предзагружаем цвета каждые N градусов для плавности
+        for (let i = 0; i < CONFIG.COLOR_CACHE_MAX; i += CONFIG.COLOR_CACHE_STEP) {
+            this.colorCache[i] = `hsl(${i}, ${CONFIG.COLOR_SATURATION}%, ${CONFIG.COLOR_LIGHTNESS}%)`;
+        }
+        
+        // Заполняем весь массив для безопасности
+        for (let i = 0; i < CONFIG.COLOR_CACHE_MAX; i++) {
+            if (!this.colorCache[i]) {
+                this.colorCache[i] = this.colorCache[Math.floor(i / CONFIG.COLOR_CACHE_STEP) * CONFIG.COLOR_CACHE_STEP];
+            }
         }
     }
 
@@ -151,22 +161,25 @@ export class UIManager {
         }
 
         if (!newHoveredElement) {
-            // Find the letter whose center is closest to cursor position
-            const letterCandidates = [];
-            this.letters.forEach(letter => {
-                const rect = letter.getBoundingClientRect();
-                if (this.isInside(x, y, rect)) {
-                    const centerX = rect.left + rect.width / 2;
-                    const centerY = rect.top + rect.height / 2;
-                    const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
-                    letterCandidates.push({ letter, rect, distance });
+            // Буквы неинтерактивны в disco mode
+            if (!this.isDiscoMode) {
+                // Find the letter whose center is closest to cursor position
+                const letterCandidates = [];
+                this.letters.forEach(letter => {
+                    const rect = letter.getBoundingClientRect();
+                    if (this.isInside(x, y, rect)) {
+                        const centerX = rect.left + rect.width / 2;
+                        const centerY = rect.top + rect.height / 2;
+                        const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+                        letterCandidates.push({ letter, rect, distance });
+                    }
+                });
+                if (letterCandidates.length > 0) {
+                    // Pick the letter with the smallest distance to cursor
+                    letterCandidates.sort((a, b) => a.distance - b.distance);
+                    newHoveredElement = letterCandidates[0].letter;
+                    cursorStyle = 'pointer';
                 }
-            });
-            if (letterCandidates.length > 0) {
-                // Pick the letter with the smallest distance to cursor
-                letterCandidates.sort((a, b) => a.distance - b.distance);
-                newHoveredElement = letterCandidates[0].letter;
-                cursorStyle = 'pointer';
             }
         }
 
@@ -192,6 +205,9 @@ export class UIManager {
         } else if (element === this.modelSwitchButton) {
             // CSS handles hover effects, no JavaScript needed
         } else if (element.classList.contains('letter')) {
+            // Буквы неинтерактивны в disco mode
+            if (this.isDiscoMode) return;
+            
             // Only apply hover effect to letters S, A, C, H
             const letter = element.dataset.letter;
             if (['S', 'A', 'C', 'H'].includes(letter)) {
@@ -206,6 +222,9 @@ export class UIManager {
         } else if (element === this.modelSwitchButton) {
             // CSS handles hover effects, no JavaScript needed
         } else if (element.classList.contains('letter')) {
+            // Буквы неинтерактивны в disco mode
+            if (this.isDiscoMode) return;
+            
             element.classList.remove('hovered');
         }
     }
@@ -216,22 +235,46 @@ export class UIManager {
 
     animate(time) {
         if (this.isDiscoMode) {
-            this.letters.forEach((letter, index) => {
-                const hue = (time * CONFIG.DISCO_LETTER_HUE_SPEED + index * 0.1) % 1;
-                const colorIndex = Math.round(hue * 359); // Use pre-cached colors
-                const color = this.colorCache[colorIndex];
-                letter.style.color = color;
-                letter.style.textShadow = `0 0 10px ${color}, 0 0 20px ${color}`;
-                letter.style.filter = 'brightness(1.5)';
-            });
+            // Возвращаем более частое обновление для плавности
+            if (!this.lastLetterUpdate || time - this.lastLetterUpdate > CONFIG.DISCO_ANIMATION_THROTTLE) {
+                this.letters.forEach((letter, index) => {
+                    // Возвращаем более сложную формулу для лучшего эффекта
+                    const randomOffset = (index * 0.17 + Math.sin(index * 2.3)) * Math.PI;
+                    const hue = (time * CONFIG.DISCO_LETTER_HUE_SPEED + randomOffset) % 1;
+                    
+                    // Больше цветов для плавности - используем настройку из конфига
+                    const colorIndex = Math.round(hue * (CONFIG.COLOR_CACHE_MAX / CONFIG.COLOR_CACHE_STEP)) * CONFIG.COLOR_CACHE_STEP;
+                    
+                    const color = this.colorCache[colorIndex] || this.colorCache[0];
+                    
+                    // Обновляем только если цвет изменился
+                    if (letter.currentColor !== colorIndex) {
+                        letter.style.color = color;
+                        // Добавляем свечение через filter: drop-shadow (быстрее чем textShadow)
+                        letter.style.filter = `brightness(1.5) drop-shadow(0 0 8px ${color}) drop-shadow(0 0 16px ${color})`;
+                        letter.currentColor = colorIndex;
+                    }
+                });
+                this.lastLetterUpdate = time;
+            }
         } else {
-            this.letters.forEach(letter => {
-                if (letter !== this.hoveredUIElement) {
-                    letter.style.color = '';
-                    letter.style.textShadow = '';
-                    letter.style.filter = '';
-                }
-            });
+            // Сбрасываем стили только при выходе из disco mode
+            if (this.wasDiscoMode) {
+                this.letters.forEach(letter => {
+                    if (letter !== this.hoveredUIElement) {
+                        letter.style.color = '';
+                        letter.style.textShadow = '';
+                        letter.style.filter = '';
+                        letter.currentColor = null;
+                    }
+                });
+                this.wasDiscoMode = false;
+            }
+        }
+        
+        // Отслеживаем состояние disco mode
+        if (this.isDiscoMode && !this.wasDiscoMode) {
+            this.wasDiscoMode = true;
         }
     }
 
