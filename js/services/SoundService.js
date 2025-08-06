@@ -14,7 +14,6 @@ export class SoundService {
         EventBus.on('playPsxSound', this.playPsxSound.bind(this));
         EventBus.on('stopPsxSound', this.stopPsxSound.bind(this));
 
-        // New interaction sound logic
         this.camera = camera;
         if (this.camera) {
             this.listener = new THREE.AudioListener();

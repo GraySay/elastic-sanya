@@ -26,6 +26,7 @@ export class ElasticDeformationService {
         EventBus.on('mouseDown', this.handleMouseDown.bind(this));
         EventBus.on('mouseUp', this.handleMouseUp.bind(this));
         EventBus.on('mouseMove', this.handleMouseMove.bind(this));
+        EventBus.on('resetDeformation', this.resetAllDeformation.bind(this));
     }
 
     onModelLoaded({ elasticMeshes, originalVertices }) {
@@ -198,6 +199,30 @@ export class ElasticDeformationService {
 
             const initialAnimationId = requestAnimationFrame(returnAnimation);
             this.activeAnimations.add(initialAnimationId);
+        });
+    }
+
+    resetAllDeformation() {
+        // Остановить все активные анимации
+        this.stopAllReturnAnimations();
+        
+        // Принудительно сбросить все mesh'ы к исходному состоянию
+        this.elasticMeshes.forEach(mesh => {
+            const geometry = mesh.geometry;
+            const positions = geometry.attributes.position;
+            const originalPos = this.originalVertices.get(mesh);
+            
+            if (originalPos) {
+                positions.array.set(originalPos);
+                positions.needsUpdate = true;
+                geometry.computeBoundingBox();
+                geometry.computeBoundingSphere();
+                
+                // Очищаем скорости вершин
+                if (mesh.vertexVelocities) {
+                    mesh.vertexVelocities.fill(0);
+                }
+            }
         });
     }
 }

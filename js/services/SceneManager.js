@@ -25,6 +25,7 @@ export class SceneManager {
         this.renderer.toneMappingExposure = 1.4;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.renderer.setClearColor(0x000000, 0);
+        this.renderer.localClippingEnabled = true; // Enable clipping planes
         
         this.optimized = false;
     }

@@ -12,6 +12,7 @@ export class UIManager {
         this.isDiscoMode = false;
         this.isModelSwitchActive = false;
         this.isModelSwitching = false;
+        this.isSwipeAnimating = false; // Для отслеживания swipe-анимации
         this.mouse = new THREE.Vector2();
         
         // Оптимизация для disco mode
@@ -24,6 +25,7 @@ export class UIManager {
 
         this.addEventListeners();
         this.addModelSwitchListeners();
+        this.addSwipeAnimationListeners();
     }
 
     initColorCache() {
@@ -52,6 +54,18 @@ export class UIManager {
         
         EventBus.on('modelSwitchError', () => {
             this.isModelSwitching = false;
+        });
+    }
+
+    addSwipeAnimationListeners() {
+        EventBus.on('swipeAnimationStart', ({ isGoingToHighRes, duration }) => {
+            this.isSwipeAnimating = true;
+            this.startSwipeAnimation(isGoingToHighRes, duration);
+        });
+        
+        EventBus.on('swipeAnimationComplete', () => {
+            this.isSwipeAnimating = false;
+            this.stopSwipeAnimation();
         });
     }
 
@@ -235,7 +249,7 @@ export class UIManager {
 
     animate(time) {
         if (this.isDiscoMode) {
-            // Возвращаем более частое обновление для плавности
+            // Диско-мод имеет приоритет - перекрывает все остальные эффекты
             if (!this.lastLetterUpdate || time - this.lastLetterUpdate > CONFIG.DISCO_ANIMATION_THROTTLE) {
                 this.letters.forEach((letter, index) => {
                     // Возвращаем более сложную формулу для лучшего эффекта
@@ -250,6 +264,11 @@ export class UIManager {
                     // Обновляем только если цвет изменился
                     if (letter.currentColor !== colorIndex) {
                         letter.style.color = color;
+                        // Очищаем sunset-эффекты при включении диско
+                        letter.style.background = '';
+                        letter.style.webkitBackgroundClip = '';
+                        letter.style.backgroundClip = '';
+                        letter.style.webkitTextFillColor = '';
                         // Добавляем свечение через filter: drop-shadow (быстрее чем textShadow)
                         letter.style.filter = `brightness(1.5) drop-shadow(0 0 8px ${color}) drop-shadow(0 0 16px ${color})`;
                         letter.currentColor = colorIndex;
@@ -266,6 +285,13 @@ export class UIManager {
                         letter.style.textShadow = '';
                         letter.style.filter = '';
                         letter.currentColor = null;
+                        // Не сбрасываем sunset-эффекты здесь, если идет swipe-анимация
+                        if (!this.isSwipeAnimating) {
+                            letter.style.background = '';
+                            letter.style.webkitBackgroundClip = '';
+                            letter.style.backgroundClip = '';
+                            letter.style.webkitTextFillColor = '';
+                        }
                     }
                 });
                 this.wasDiscoMode = false;
@@ -276,6 +302,92 @@ export class UIManager {
         if (this.isDiscoMode && !this.wasDiscoMode) {
             this.wasDiscoMode = true;
         }
+    }
+
+    startSwipeAnimation(isGoingToHighRes, duration) {
+        const targetBgColor = isGoingToHighRes ? '#000000' : '#C5C5C5';
+        const currentBgColor = isGoingToHighRes ? '#C5C5C5' : '#000000';
+        
+        // Анимируем фон
+        if (window.gsap) {
+            const tempBg = { r: parseInt(currentBgColor.slice(1, 3), 16), g: parseInt(currentBgColor.slice(3, 5), 16), b: parseInt(currentBgColor.slice(5, 7), 16) };
+            const targetBg = { r: parseInt(targetBgColor.slice(1, 3), 16), g: parseInt(targetBgColor.slice(3, 5), 16), b: parseInt(targetBgColor.slice(5, 7), 16) };
+            
+            window.gsap.to(tempBg, {
+                r: targetBg.r,
+                g: targetBg.g,
+                b: targetBg.b,
+                duration: duration,
+                ease: 'none',
+                onUpdate: () => {
+                    const r = Math.round(tempBg.r).toString(16).padStart(2, '0');
+                    const g = Math.round(tempBg.g).toString(16).padStart(2, '0');
+                    const b = Math.round(tempBg.b).toString(16).padStart(2, '0');
+                    document.body.style.backgroundColor = `#${r}${g}${b}`;
+                }
+            });
+        }
+        
+        if (!this.isDiscoMode && !isGoingToHighRes) {
+            this.startSunsetMoodAnimation();
+        }
+    }
+
+    stopSwipeAnimation() {
+        
+        if (!this.isDiscoMode) {
+            this.stopSunsetMoodAnimation();
+        }
+    }
+
+    startSunsetMoodAnimation() {
+        this.letters.forEach((letter, index) => {
+            if (window.gsap) {
+                
+                const delay = index * 0.1; 
+                
+                window.gsap.to(letter, {
+                    duration: 0.5,
+                    delay: delay,
+                    ease: 'power2.out',
+                    onUpdate: () => {
+                        if (!this.isDiscoMode) { 
+                            const progress = window.gsap.getProperty(letter, 'progress') || 0;
+                            const hue1 = 30; // Оранжевый
+                            const hue2 = 60; // Желтый
+                            
+                            letter.style.background = `radial-gradient(circle, hsl(${hue1}, 80%, 60%), hsl(${hue2}, 90%, 70%))`;
+                            letter.style.webkitBackgroundClip = 'text';
+                            letter.style.backgroundClip = 'text';
+                            letter.style.webkitTextFillColor = 'transparent';
+                            letter.style.color = 'transparent';
+                            letter.style.textShadow = `0 0 10px hsla(${hue1}, 80%, 60%, 0.8)`;
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    stopSunsetMoodAnimation() {
+        this.letters.forEach(letter => {
+            if (window.gsap) {
+                window.gsap.to(letter, {
+                    duration: 0.3,
+                    ease: 'power2.out',
+                    onUpdate: () => {
+                        if (!this.isDiscoMode) { 
+                            letter.style.background = '';
+                            letter.style.webkitBackgroundClip = '';
+                            letter.style.backgroundClip = '';
+                            letter.style.webkitTextFillColor = '';
+                            letter.style.color = '';
+                            letter.style.textShadow = '';
+                        }
+                    }
+                });
+            }
+        });
     }
 
 }
