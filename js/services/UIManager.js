@@ -128,9 +128,9 @@ export class UIManager {
         if (element === this.soundButton) {
             element.querySelector('.image-container').classList.add('hover-imitation');
         } else if (element.classList.contains('letter')) {
-            // Only apply hover effect to letters I, L, U, K
+            // Only apply hover effect to specific letters
             const letter = element.dataset.letter;
-            if (['I', 'L', 'U', 'K'].includes(letter)) {
+            if (['S', 'A', 'C', 'H'].includes(letter)) {
                 element.classList.add('hovered');
             }
         }
