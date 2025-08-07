@@ -42,10 +42,9 @@ export class LightingService {
     handleUIHover({ element }) {
         if (this.isDiscoMode) return;
 
-        // Only trigger lighting effects for letters I, L, U, K
         if (element && element.classList.contains('letter')) {
             const letter = element.dataset.letter;
-            if (['I', 'L', 'U', 'K'].includes(letter)) {
+            if (['S', 'A', 'C', 'H'].includes(letter)) {
                 this.updateModelLights(new THREE.Color(0xffffff), CONFIG.DYNAMIC_LIGHT_INTENSITY);
             } else {
                 this.resetModelLights();
