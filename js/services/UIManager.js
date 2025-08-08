@@ -373,7 +373,7 @@ export class UIManager {
         this.letters.forEach(letter => {
             if (window.gsap) {
                 window.gsap.to(letter, {
-                    duration: 0.3,
+                    duration: 0.5,
                     ease: 'power2.out',
                     onUpdate: () => {
                         if (!this.isDiscoMode) { 

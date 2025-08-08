@@ -1,7 +1,7 @@
 export const CONFIG = {
     // Model paths
     MODEL_PATH: 'assets/10k.glb',
-    MODEL_PATH_1K: 'assets/500.glb',
+    ALT_MODEL_PATH: 'assets/500_alt.glb',
     
     // Audio files
     SOUNDS: {
@@ -80,5 +80,10 @@ export const CONFIG = {
     // Mouse interaction
     MOUSE_ROTATION_X_FACTOR: 0.3,
     MOUSE_ROTATION_Y_FACTOR: 0.5,
-    LERP_FACTOR: 0.05
+    LERP_FACTOR: 0.05,
+    
+    // PSX Shader effect
+    PSX_EFFECT_ENABLED: true,
+    PSX_VERTEX_JITTER: 0.01,
+    PSX_COLOR_QUANTIZATION: 48.0
 };

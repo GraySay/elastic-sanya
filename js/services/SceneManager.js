@@ -25,7 +25,7 @@ export class SceneManager {
         this.renderer.toneMappingExposure = 1.4;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.renderer.setClearColor(0x000000, 0);
-        this.renderer.localClippingEnabled = true; // Enable clipping planes
+        this.renderer.localClippingEnabled = false; // Disable global clipping
         
         this.optimized = false;
     }
@@ -50,14 +50,5 @@ export class SceneManager {
 
     getRenderer() {
         return this.renderer;
-    }
-
-    render() {
-        // Force WebGL state optimization after initial frames
-        if (!this.optimized && performance.now() > 5000) {
-            this.renderer.compile(this.scene, this.camera);
-            this.optimized = true;
-        }
-        this.renderer.render(this.scene, this.camera);
     }
 }

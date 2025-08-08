@@ -14,7 +14,7 @@ class ElasticSanyaApp {
         this.sceneManager = new SceneManager(this.canvas);
         this.soundService = new SoundService(this.sceneManager.getCamera());
         this.lightingService = new LightingService(this.sceneManager.getScene(), this.sceneManager.getCamera());
-        this.modelService = new ModelService(this.sceneManager.getScene());
+        this.modelService = new ModelService(this.sceneManager.getScene(), this.sceneManager.getRenderer());
         this.elasticDeformationService = new ElasticDeformationService(this.sceneManager.getCamera());
         this.uiManager = new UIManager();
 
@@ -23,6 +23,7 @@ class ElasticSanyaApp {
         this.startMouse = { x: 0, y: 0 };
         this.lastTrigger = { x: 0, y: 0 };
         this.stretchTriggered = false;
+        this.clock = new THREE.Clock();
 
         this.setupEventListeners();
         this.modelService.loadModel();
@@ -100,11 +101,20 @@ class ElasticSanyaApp {
     animate(time) {
         requestAnimationFrame(this.animate.bind(this));
         
+        const deltaTime = this.clock.getDelta();
+        
         this.lightingService.animate(time);
         this.uiManager.animate(time);
         this.modelService.animate(this.mouse, this.isMouseDownForDeformation);
+        
+        // Update PSX shader uniforms
+        this.modelService.update(
+            deltaTime, 
+            this.lightingService.dynamicLight.position, 
+            this.lightingService.dynamicLight.intensity
+        );
 
-        this.sceneManager.render();
+        this.sceneManager.getRenderer().render(this.sceneManager.getScene(), this.sceneManager.getCamera());
     }
 }
 
