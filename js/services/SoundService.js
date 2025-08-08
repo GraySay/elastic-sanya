@@ -114,8 +114,8 @@ export class SoundService {
         if (this._firstGestureAttached) return;
         this._firstGestureAttached = true;
         this._firstGestureHandler = () => this.tryUnlockAudio();
-        // Minimal set, capture phase, no preventDefault or stopPropagation
-        ['pointerdown', 'touchstart', 'keydown'].forEach(type => {
+        // Minimal set on gesture end to avoid any subtle first-down interference
+        ['pointerup', 'touchend', 'keydown'].forEach(type => {
             const opts = type === 'touchstart' ? { capture: true, passive: true } : { capture: true };
             document.addEventListener(type, this._firstGestureHandler, opts);
         });
@@ -123,7 +123,7 @@ export class SoundService {
 
     _detachFirstGestureListeners() {
         if (!this._firstGestureAttached) return;
-        ['pointerdown', 'touchstart', 'keydown'].forEach(type => {
+        ['pointerup', 'touchend', 'keydown'].forEach(type => {
             document.removeEventListener(type, this._firstGestureHandler, { capture: true });
         });
         this._firstGestureAttached = false;

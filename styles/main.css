@@ -17,6 +17,8 @@ canvas {
     pointer-events: auto;
     mix-blend-mode: normal;
     cursor: default;
+    /* Ensure immediate touch interaction on mobile (no scroll/zoom gesture capture) */
+    touch-action: none;
 }
 .text-overlay {
     position: fixed;
