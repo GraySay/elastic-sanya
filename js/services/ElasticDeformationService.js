@@ -11,7 +11,7 @@ export class ElasticDeformationService {
         this.lastDeformTime = 0;
         this.elasticMeshes = [];
         this.originalVertices = new Map();
-        this.activeAnimations = new Set(); // Для отслеживания активных анимаций
+    this.activeAnimations = new Set(); // Track active return animations
 
         this.tempVectors = {
             vertex: new THREE.Vector3(),
@@ -36,7 +36,7 @@ export class ElasticDeformationService {
 
     handleMouseDown({ event, mouse }) {
         if (this.elasticMeshes.length > 0) {
-            // Остановить все активные анимации возврата
+            // Stop any ongoing return animations
             this.stopAllReturnAnimations();
             
             this.raycaster.setFromCamera(mouse, this.camera);
@@ -129,7 +129,7 @@ export class ElasticDeformationService {
     }
 
     stopAllReturnAnimations() {
-        // Остановить все активные анимации возврата
+    // Cancel all scheduled return frames
         this.activeAnimations.forEach(animationId => {
             cancelAnimationFrame(animationId);
         });
@@ -137,7 +137,7 @@ export class ElasticDeformationService {
     }
 
     animateElasticReturn() {
-        // Остановить предыдущие анимации перед началом новой
+    // Ensure previous return animations are stopped
         this.stopAllReturnAnimations();
         
         this.elasticMeshes.forEach(mesh => {
@@ -203,10 +203,10 @@ export class ElasticDeformationService {
     }
 
     resetAllDeformation() {
-        // Остановить все активные анимации
+    // Stop all active animations
         this.stopAllReturnAnimations();
         
-        // Принудительно сбросить все mesh'ы к исходному состоянию
+    // Forcefully reset all meshes to original positions
         this.elasticMeshes.forEach(mesh => {
             const geometry = mesh.geometry;
             const positions = geometry.attributes.position;
@@ -218,7 +218,7 @@ export class ElasticDeformationService {
                 geometry.computeBoundingBox();
                 geometry.computeBoundingSphere();
                 
-                // Очищаем скорости вершин
+        // Clear vertex velocities
                 if (mesh.vertexVelocities) {
                     mesh.vertexVelocities.fill(0);
                 }

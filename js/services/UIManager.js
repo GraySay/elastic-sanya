@@ -12,10 +12,10 @@ export class UIManager {
         this.isDiscoMode = false;
         this.isModelSwitchActive = false;
         this.isModelSwitching = false;
-        this.isSwipeAnimating = false; // Для отслеживания swipe-анимации
+    this.isSwipeAnimating = false; // Track swipe animation state
         this.mouse = new THREE.Vector2();
         
-        // Оптимизация для disco mode
+    // Disco mode optimization
         this.lastLetterUpdate = 0;
         this.wasDiscoMode = false;
         
@@ -29,12 +29,12 @@ export class UIManager {
     }
 
     initColorCache() {
-        // Предзагружаем цвета каждые N градусов для плавности
+    // Preload colors every N degrees for smoothness
         for (let i = 0; i < CONFIG.COLOR_CACHE_MAX; i += CONFIG.COLOR_CACHE_STEP) {
             this.colorCache[i] = `hsl(${i}, ${CONFIG.COLOR_SATURATION}%, ${CONFIG.COLOR_LIGHTNESS}%)`;
         }
         
-        // Заполняем весь массив для безопасности
+    // Fill missing entries for safety
         for (let i = 0; i < CONFIG.COLOR_CACHE_MAX; i++) {
             if (!this.colorCache[i]) {
                 this.colorCache[i] = this.colorCache[Math.floor(i / CONFIG.COLOR_CACHE_STEP) * CONFIG.COLOR_CACHE_STEP];
@@ -90,7 +90,7 @@ export class UIManager {
     }
 
     onMouseDown(event) {
-        // onMouseMove is not guaranteed to fire before onMouseDown, so we update the mouse position here too.
+    // Update mouse position here too (order of events isn't guaranteed)
         const clientX = event.touches ? event.touches[0].clientX : event.clientX;
         const clientY = event.touches ? event.touches[0].clientY : event.clientY;
         this.mouse.x = (clientX / window.innerWidth) * 2 - 1;
@@ -114,7 +114,7 @@ export class UIManager {
 
     onMouseUp() {
         this.soundButton.classList.remove('active-imitation');
-        // Clear hovered element on touch end to reset hover states
+    // Clear hover on touch end to reset state
         if (this.hoveredUIElement && this.hoveredUIElement.classList.contains('letter')) {
             this.handleMouseLeave(this.hoveredUIElement);
             this.hoveredUIElement = null;
@@ -148,7 +148,7 @@ export class UIManager {
             EventBus.emit('stopPsxSound');
         }
         
-        // Always emit model switch event
+    // Always trigger model switch
         EventBus.emit('modelSwitch');
     }
 
@@ -175,9 +175,9 @@ export class UIManager {
         }
 
         if (!newHoveredElement) {
-            // Буквы неинтерактивны в disco mode
+            // Letters are non-interactive in disco mode
             if (!this.isDiscoMode) {
-                // Find the letter whose center is closest to cursor position
+                // Find the letter whose center is closest to the cursor
                 const letterCandidates = [];
                 this.letters.forEach(letter => {
                     const rect = letter.getBoundingClientRect();
@@ -189,7 +189,7 @@ export class UIManager {
                     }
                 });
                 if (letterCandidates.length > 0) {
-                    // Pick the letter with the smallest distance to cursor
+                    // Pick the letter closest to the cursor
                     letterCandidates.sort((a, b) => a.distance - b.distance);
                     newHoveredElement = letterCandidates[0].letter;
                     cursorStyle = 'pointer';
@@ -217,12 +217,12 @@ export class UIManager {
         if (element === this.soundButton) {
             element.querySelector('.image-container').classList.add('hover-imitation');
         } else if (element === this.modelSwitchButton) {
-            // CSS handles hover effects, no JavaScript needed
+            // CSS handles hover effects
         } else if (element.classList.contains('letter')) {
-            // Буквы неинтерактивны в disco mode
+            // Letters are non-interactive in disco mode
             if (this.isDiscoMode) return;
             
-            // Only apply hover effect to letters S, A, C, H
+            // Only letters S, A, C, H have hover effects
             const letter = element.dataset.letter;
             if (['S', 'A', 'C', 'H'].includes(letter)) {
                 element.classList.add('hovered');
@@ -234,9 +234,9 @@ export class UIManager {
         if (element === this.soundButton) {
             element.querySelector('.image-container').classList.remove('hover-imitation');
         } else if (element === this.modelSwitchButton) {
-            // CSS handles hover effects, no JavaScript needed
+            // CSS handles hover effects
         } else if (element.classList.contains('letter')) {
-            // Буквы неинтерактивны в disco mode
+            // Letters are non-interactive in disco mode
             if (this.isDiscoMode) return;
             
             element.classList.remove('hovered');
@@ -249,27 +249,27 @@ export class UIManager {
 
     animate(time) {
         if (this.isDiscoMode) {
-            // Диско-мод имеет приоритет - перекрывает все остальные эффекты
+            // Disco mode overrides other effects
             if (!this.lastLetterUpdate || time - this.lastLetterUpdate > CONFIG.DISCO_ANIMATION_THROTTLE) {
                 this.letters.forEach((letter, index) => {
-                    // Возвращаем более сложную формулу для лучшего эффекта
+                    // Use a complex phase for a better effect
                     const randomOffset = (index * 0.17 + Math.sin(index * 2.3)) * Math.PI;
                     const hue = (time * CONFIG.DISCO_LETTER_HUE_SPEED + randomOffset) % 1;
                     
-                    // Больше цветов для плавности - используем настройку из конфига
+                    // More colors for smoothness
                     const colorIndex = Math.round(hue * (CONFIG.COLOR_CACHE_MAX / CONFIG.COLOR_CACHE_STEP)) * CONFIG.COLOR_CACHE_STEP;
                     
                     const color = this.colorCache[colorIndex] || this.colorCache[0];
                     
-                    // Обновляем только если цвет изменился
+                    // Update only on color change
                     if (letter.currentColor !== colorIndex) {
                         letter.style.color = color;
-                        // Очищаем sunset-эффекты при включении диско
+                        // Clear sunset effect when disco starts
                         letter.style.background = '';
                         letter.style.webkitBackgroundClip = '';
                         letter.style.backgroundClip = '';
                         letter.style.webkitTextFillColor = '';
-                        // Добавляем свечение через filter: drop-shadow (быстрее чем textShadow)
+                        // Glow via drop-shadow (faster than textShadow)
                         letter.style.filter = `brightness(1.5) drop-shadow(0 0 8px ${color}) drop-shadow(0 0 16px ${color})`;
                         letter.currentColor = colorIndex;
                     }
@@ -277,7 +277,7 @@ export class UIManager {
                 this.lastLetterUpdate = time;
             }
         } else {
-            // Сбрасываем стили только при выходе из disco mode
+            // Reset styles on exit from disco mode
             if (this.wasDiscoMode) {
                 this.letters.forEach(letter => {
                     if (letter !== this.hoveredUIElement) {
@@ -285,7 +285,7 @@ export class UIManager {
                         letter.style.textShadow = '';
                         letter.style.filter = '';
                         letter.currentColor = null;
-                        // Не сбрасываем sunset-эффекты здесь, если идет swipe-анимация
+                        // Keep sunset effect if swipe animation is active
                         if (!this.isSwipeAnimating) {
                             letter.style.background = '';
                             letter.style.webkitBackgroundClip = '';
@@ -298,7 +298,7 @@ export class UIManager {
             }
         }
         
-        // Отслеживаем состояние disco mode
+        // Track disco mode state
         if (this.isDiscoMode && !this.wasDiscoMode) {
             this.wasDiscoMode = true;
         }
@@ -308,7 +308,7 @@ export class UIManager {
         const targetBgColor = isGoingToHighRes ? '#000000' : '#C5C5C5';
         const currentBgColor = isGoingToHighRes ? '#C5C5C5' : '#000000';
         
-        // Анимируем фон
+    // Animate background color
         if (window.gsap) {
             const tempBg = { r: parseInt(currentBgColor.slice(1, 3), 16), g: parseInt(currentBgColor.slice(3, 5), 16), b: parseInt(currentBgColor.slice(5, 7), 16) };
             const targetBg = { r: parseInt(targetBgColor.slice(1, 3), 16), g: parseInt(targetBgColor.slice(3, 5), 16), b: parseInt(targetBgColor.slice(5, 7), 16) };
@@ -341,7 +341,7 @@ export class UIManager {
     }
 
     startSunsetMoodAnimation() {
-        this.letters.forEach((letter, index) => {
+    this.letters.forEach((letter, index) => {
             if (window.gsap) {
                 
                 const delay = index * 0.1; 
@@ -351,10 +351,10 @@ export class UIManager {
                     delay: delay,
                     ease: 'power2.out',
                     onUpdate: () => {
-                        if (!this.isDiscoMode) { 
+                        if (!this.isDiscoMode) {
                             const progress = window.gsap.getProperty(letter, 'progress') || 0;
-                            const hue1 = 30; // Оранжевый
-                            const hue2 = 60; // Желтый
+                            const hue1 = 30; // orange
+                            const hue2 = 60; // yellow
                             
                             letter.style.background = `radial-gradient(circle, hsl(${hue1}, 80%, 60%), hsl(${hue2}, 90%, 70%))`;
                             letter.style.webkitBackgroundClip = 'text';
@@ -376,7 +376,7 @@ export class UIManager {
                     duration: 0.5,
                     ease: 'power2.out',
                     onUpdate: () => {
-                        if (!this.isDiscoMode) { 
+                        if (!this.isDiscoMode) {
                             letter.style.background = '';
                             letter.style.webkitBackgroundClip = '';
                             letter.style.backgroundClip = '';

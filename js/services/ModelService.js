@@ -44,7 +44,7 @@ export class ModelService {
                     originalVertices: this.originalVertices
                 });
             },
-            (xhr) => console.log((xhr.loaded / xhr.total * 100) + '% loaded'),
+            undefined,
             (error) => console.error('Error loading model:', error)
         );
     }
@@ -53,9 +53,9 @@ export class ModelService {
         if (this.isTransitioning) return;
         
         this.isTransitioning = true;
-        EventBus.emit('modelSwitchStart'); // Уведомляем UIManager о начале переключения
+    EventBus.emit('modelSwitchStart');
         
-        // Switch between models
+    // Toggle between models
         const isGoingToHighRes = this.currentModelPath === CONFIG.ALT_MODEL_PATH;
         this.currentModelPath = this.currentModelPath === CONFIG.MODEL_PATH ? CONFIG.ALT_MODEL_PATH : CONFIG.MODEL_PATH;
         
@@ -67,55 +67,55 @@ export class ModelService {
             (gltf) => {
                 const newModel = gltf.scene;
                 
-                // Setup new model
+                // Center and transform new model
                 const box = new THREE.Box3().setFromObject(newModel);
                 const center = box.getCenter(new THREE.Vector3());
                 newModel.position.sub(center);
                 this.setModelTransform(newModel);
                 
-                // Применяем PSX шейдер, если это ALT_MODEL
+                // Apply PSX shader only for ALT model
                 if (this.currentModelPath === CONFIG.ALT_MODEL_PATH) {
                     this.applyPSXShader(newModel);
                 }
                 
-                // Сохраняем исходные vertices для новой модели ДО любых деформаций
+                // Save original vertices before any deformation
                 this.saveOriginalVertices(newModel);
                 
-                // Copy current rotation for smooth transition
+                // Copy rotation for a smooth transition
                 if (oldModel) {
                     newModel.rotation.copy(oldModel.rotation);
                 }
                 
-                // Setup clipping planes ПЕРЕД добавлением в сцену
-                this.clippingPlaneInv.constant = -2; // New model hidden
-                this.clippingPlaneInv.normal.set(-1, 0, 0); // Убедимся, что нормаль правильная
+                // Initialize clipping for new model before adding to scene
+                this.clippingPlaneInv.constant = -2; // hidden
+                this.clippingPlaneInv.normal.set(-1, 0, 0);
                 this.setupModelClipping(newModel, [this.clippingPlaneInv]);
                 
-                // Только теперь добавляем в сцену
+                // Add to scene after clipping is set
                 this.scene.add(newModel);
                 
                 if (oldModel) {
-                    this.clippingPlane.constant = 2; // Old model visible
+                    this.clippingPlane.constant = 2; // visible
                     this.setupModelClipping(oldModel, [this.clippingPlane]);
                 }
                 
-                // Настраиваем модели для синхронной анимации
+                // Track models involved in transition
                 this.transitionModels = [oldModel, newModel].filter(Boolean);
                 
-                // Обновляем основную модель для отслеживания курсора
+                // Update main reference
                 this.model = newModel;
                 
-                // Собираем все mesh'ы и originalVertices для обеих моделей
+                // Rebuild elastic data for both models
                 this.updateTransitionElasticData();
                 
-                // Start animation immediately to avoid initial flash
+                // Start animation immediately
                 this.animateSwipe(oldModel, newModel, isGoingToHighRes);
             },
             undefined,
             (error) => {
                 console.error('Error loading model:', error);
                 this.isTransitioning = false;
-                EventBus.emit('modelSwitchError'); // Уведомляем об ошибке
+                EventBus.emit('modelSwitchError');
             }
         );
     }
@@ -138,14 +138,14 @@ export class ModelService {
                 const material = child.material.clone();
                 const original = child.userData.originalMaterial;
                 
-                // Restore original material properties
+                // Restore original PBR properties
                 material.metalness = original.metalness;
                 material.roughness = original.roughness;
                 material.envMapIntensity = original.envMapIntensity;
                 material.aoMapIntensity = original.aoMapIntensity;
                 material.dithering = original.dithering;
                 
-                // Setup clipping
+                // Apply clipping
                 if (clippingPlanes && clippingPlanes.length > 0) {
                     material.clippingPlanes = clippingPlanes;
                     material.clipShadows = true;
@@ -169,33 +169,33 @@ export class ModelService {
     }
 
     animateSwipe(oldModel, newModel, isGoingToHighRes) {
-        // Устанавливаем начальное состояние непосредственно перед анимацией
+    // Initialize clipping state just before animation
         this.clippingPlane.constant = 2;
         this.clippingPlaneInv.constant = -2;
         this.setupModelClipping(oldModel, [this.clippingPlane]);
         this.setupModelClipping(newModel, [this.clippingPlaneInv]);
 
-        // Определяем скорость анимации
+    // Duration/steps per mode
         const duration = isGoingToHighRes ? 1 : 3;
         const steps = isGoingToHighRes ? 64 : 64;
         
         EventBus.emit('swipeAnimationStart', { isGoingToHighRes, duration });
-        // Включаем глобальное clipping сразу перед анимацией
+    // Enable global clipping during animation
         this.renderer.localClippingEnabled = true;
         
         if (window.gsap) {
             if (isGoingToHighRes) {
-                // 1-секундная анимация: clipping обеих моделей как раньше
+        // 1s: both models clipped
                 const timeline = window.gsap.timeline({
                     onStart: () => {
-                        // Включаем clipping только если есть стандартные материалы
+            // Enable renderer clipping when standard materials exist
                         const hasStandardMaterials = oldModel && oldModel.traverse(child => {
                             if (child.isMesh && !child.material.isShaderMaterial) return true;
                         });
                         if (hasStandardMaterials) {
                             this.renderer.localClippingEnabled = true;
                         }
-                        // Принудительно инициализируем clipping для шейдерных материалов
+            // Ensure shader materials get initial uniforms
                         if (oldModel) this.setupModelClipping(oldModel, [this.clippingPlane]);
                         if (newModel) this.setupModelClipping(newModel, [this.clippingPlaneInv]);
                     },
@@ -206,7 +206,7 @@ export class ModelService {
                     }
                 });
                 
-                // Анимируем обе плоскости синхронно
+        // Animate both planes in sync
                 timeline.fromTo(
                     this.clippingPlane,
                     { constant: 2 },
@@ -216,16 +216,16 @@ export class ModelService {
                         ease: `steps(${steps}, end)`, 
                         immediateRender: false,
                         onUpdate: () => {
-                            // Синхронизируем инвертированную плоскость
+                // Mirror plane
                             this.clippingPlaneInv.constant = -this.clippingPlane.constant;
-                            // Обновляем clipping для обеих моделей
+                // Update materials
                             if (oldModel) this.setupModelClipping(oldModel, [this.clippingPlane]);
                             if (newModel) this.setupModelClipping(newModel, [this.clippingPlaneInv]);
                         }
                     }
                 );
             } else {
-                // 3-секундная анимация: падение старой модели + появление новой
+        // 3s: old falls + new appears
                 this.animateFallAndReplace(oldModel, newModel, duration);
             }
         } else {
@@ -235,10 +235,10 @@ export class ModelService {
     }
 
     animateFallAndReplace(oldModel, newModel, duration) {
-        // Отключаем clipping для новой модели - она появится без эффекта
+    // Disable clipping on the new model (no effect during 3s path)
         this.setupModelClipping(newModel, []);
         
-        // Скрываем новую модель до окончания падения
+    // Hide new model until the fall is done
         newModel.visible = false;
         
         if (window.gsap) {
@@ -249,20 +249,20 @@ export class ModelService {
                 }
             });
 
-            // Фаза 1: Падение старой модели (2.5 сек)
+        // Phase 1: old model falls (2.7s)
             timeline.to(oldModel.position, {
-                y: -10, // падает вниз
+        y: -10,
                 duration: 2.7,
                 ease: "bounce.out",
                 onComplete: () => {
-                    // Уведомляем об окончании первой фазы - для завершения текстовой анимации
+            // Signal UI to finish text animation after phase 1
                     EventBus.emit('swipeAnimationComplete');
                 }
             })
-            // Фаза 2: Появление новой модели (0.5 сек)
+        // Phase 2: new model scales in (0.5s)
             .call(() => {
                 newModel.visible = true;
-                newModel.scale.set(0, 0, 0); // начинаем с нулевого размера
+        newModel.scale.set(0, 0, 0);
             })
             .to(newModel.scale, {
                 x: window.innerWidth <= CONFIG.MOBILE_BREAKPOINT ? CONFIG.MOBILE_SCALE : CONFIG.DESKTOP_SCALE,
@@ -271,12 +271,12 @@ export class ModelService {
                 duration: 0.5,
                 ease: "back.out(1.7)"
             })
-            // Фаза 3: Плавное исчезновение старой модели
+        // Phase 3: fade out old model (0.5s)
             .to({ opacity: 1 }, {
                 opacity: 0,
                 duration: 0.5,
                 onUpdate: function() {
-                    // Применяем opacity ко всем материалам старой модели
+            // Apply opacity to all old model materials
                     const currentOpacity = this.targets()[0].opacity;
                     if (oldModel) {
                         oldModel.traverse((child) => {
@@ -294,7 +294,7 @@ export class ModelService {
                         });
                     }
                 }
-            }, "-=0.5"); // начинаем одновременно с появлением новой модели
+        }, "-=0.5");
         }
     }
 
@@ -302,7 +302,7 @@ export class ModelService {
         this.isTransitioning = false;
         this.renderer.localClippingEnabled = false;
         
-        // Remove old model and clean up materials
+    // Remove old model and clean up materials
         if (this.transitionModels[0]) {
             this.scene.remove(this.transitionModels[0]);
             this.transitionModels[0].traverse((child) => {
@@ -312,7 +312,7 @@ export class ModelService {
             });
         }
         
-        // Reset clipping on the new model
+    // Reset clipping on the new model
         if (this.transitionModels[1]) {
             this.setupModelClipping(this.transitionModels[1], []);
         }
@@ -333,12 +333,12 @@ export class ModelService {
                 const uniforms = {
                     map: { value: oldMaterial.map },
                     diffuse: { value: oldMaterial.color },
-                    opacity: { value: oldMaterial.opacity }, // возвращаем нормальную opacity
+                    opacity: { value: oldMaterial.opacity },
                     time: { value: 0.0 },
                     vertexJitter: { value: CONFIG.PSX_VERTEX_JITTER },
                     colorQuantization: { value: CONFIG.PSX_COLOR_QUANTIZATION },
                     
-                    // Clipping planes - инициализируем с отключенным clipping
+                    // Clipping uniforms (disabled by default)
                     clippingPlane: { value: new THREE.Vector4(1, 0, 0, 0) },
                     enableClipping: { value: false },
                     
@@ -356,7 +356,7 @@ export class ModelService {
                     clipping: false // We handle clipping manually
                 });
                 
-                // Store original material for later
+                // Keep original for potential restore
                 child.userData.originalMaterial = oldMaterial;
                 child.material = newMaterial;
             }
@@ -364,7 +364,7 @@ export class ModelService {
     }
 
     update(deltaTime, lightPosition, lightIntensity) {
-        // Update PSX shader time uniform for all meshes in the model
+        // Update PSX shader uniforms
         if (this.model && CONFIG.PSX_EFFECT_ENABLED && this.currentModelPath === CONFIG.ALT_MODEL_PATH) {
             this.model.traverse((child) => {
                 if (child.isMesh && child.material && child.material.isShaderMaterial) {
@@ -382,27 +382,20 @@ export class ModelService {
         model.traverse((child) => {
             if (child.isMesh && child.material) {
                 if (child.material.isShaderMaterial) {
-                    // PSX shader handles clipping via uniforms - disable Three.js clipping
+                    // Use shader uniforms for clipping; disable Three.js clipping
                     child.material.clippingPlanes = [];
                     child.material.clipShadows = false;
                     child.material.uniforms.enableClipping.value = planes && planes.length > 0;
                     if (planes && planes.length > 0) {
                         const plane = planes[0];
                         child.material.uniforms.clippingPlane.value.set(plane.normal.x, plane.normal.y, plane.normal.z, plane.constant);
-                        // Принудительно обновляем шейдер
                         child.material.uniformsNeedUpdate = true;
                         child.material.needsUpdate = true;
-                        console.log('Shader clipping updated for newModel:', {
-                            normal: [plane.normal.x, plane.normal.y, plane.normal.z],
-                            constant: plane.constant,
-                            enableClipping: true,
-                            modelVisible: plane.normal.x * 0 + plane.normal.y * 0 + plane.normal.z * 0 + plane.constant > 0 ? 'YES' : 'NO'
-                        });
                     } else {
-                        console.log('Shader clipping disabled');
+                        // No clipping
                     }
                 } else {
-                    // Standard materials use Three.js clipping
+                    // Standard materials: Three.js clipping
                     child.material.clippingPlanes = planes || [];
                     child.material.clipIntersection = false; 
                     child.material.needsUpdate = true;
@@ -413,14 +406,14 @@ export class ModelService {
 
     setupElasticDeformation(model) {
         this.elasticMeshes = [];
-        // НЕ очищаем originalVertices! Сохраняем уже существующие
+    // Keep existing originalVertices
         
         model.traverse((child) => {
             if (child.isMesh) {
                 if (child.geometry.isBufferGeometry && child.geometry.attributes.position) {
                     this.elasticMeshes.push(child);
                     
-                    // Создаем originalVertices только если их еще нет
+            // Create originalVertices if missing
                     if (!this.originalVertices.has(child)) {
                         const positions = child.geometry.attributes.position;
                         const originalPositions = new Float32Array(positions.array);
@@ -481,30 +474,10 @@ export class ModelService {
         });
     }
 
-    update(deltaTime, lightPosition, lightIntensity) {
-        if (this.model && this.currentModelPath === CONFIG.ALT_MODEL_PATH) {
-            this.model.traverse((child) => {
-                if (child.isMesh && child.material.isShaderMaterial) {
-                    const uniforms = child.material.uniforms;
-                    uniforms.time.value += deltaTime;
-                    uniforms.lightPosition.value.copy(lightPosition);
-                    uniforms.lightIntensity.value = lightIntensity;
-                    
-                    // Обновляем clipping plane
-                    if (this.scene.clippingPlanes && this.scene.clippingPlanes.length > 0) {
-                        uniforms.enableClipping.value = true;
-                        uniforms.clippingPlane.value.copy(this.scene.clippingPlanes[0]);
-                    } else {
-                        uniforms.enableClipping.value = false;
-                    }
-                }
-            });
-        }
-    }
+    
 
-    // ... (keep existing methods like onWindowResize, animate, etc.)
     onWindowResize() {
-        // Во время перехода изменяем размер всех переходных моделей
+    // During transition, resize all involved models
         if (this.isTransitioning && this.transitionModels.length > 0) {
             this.transitionModels.forEach(model => {
                 if (model) {
@@ -512,20 +485,20 @@ export class ModelService {
                 }
             });
         }
-        // Обычное изменение размера для одной модели
+    // Otherwise, resize the active model
         else if (this.model) {
             this.setModelTransform(this.model);
         }
     }
 
     animate(mouse, isMouseDown) {
-        // Во время перехода анимируем все переходные модели синхронно
+    // During transition, animate all models together
         if (this.isTransitioning && this.transitionModels.length > 0) {
             if (!isMouseDown) {
                 const targetX = mouse.x * CONFIG.MOUSE_ROTATION_Y_FACTOR;
                 const targetY = -mouse.y * CONFIG.MOUSE_ROTATION_X_FACTOR;
 
-                // Анимируем все модели в переходе синхронно
+        // Apply rotation to each
                 this.transitionModels.forEach(model => {
                     if (model) {
                         model.rotation.y = THREE.MathUtils.lerp(model.rotation.y, targetX, CONFIG.LERP_FACTOR);
@@ -534,7 +507,7 @@ export class ModelService {
                 });
             }
         } 
-        // Обычная анимация для одной модели
+    // Default path: animate active model only
         else if (this.model && !isMouseDown) {
             const targetX = mouse.x * CONFIG.MOUSE_ROTATION_Y_FACTOR;
             const targetY = -mouse.y * CONFIG.MOUSE_ROTATION_X_FACTOR;
@@ -545,7 +518,7 @@ export class ModelService {
     }
 
     saveOriginalVertices(model) {
-        // Сохраняем исходные vertices до любых деформаций
+    // Save original vertices for deformation system
         model.traverse((child) => {
             if (child.isMesh && child.geometry.isBufferGeometry && child.geometry.attributes.position) {
                 if (!this.originalVertices.has(child)) {
@@ -560,7 +533,7 @@ export class ModelService {
     }
 
     updateTransitionElasticData() {
-        // Во время перехода собираем elastic данные со всех моделей
+    // During transition, aggregate elastic data from all models
         if (this.isTransitioning && this.transitionModels.length > 0) {
             const combinedElasticMeshes = [];
             const combinedOriginalVertices = new Map();
@@ -571,7 +544,7 @@ export class ModelService {
                         if (child.isMesh && child.geometry.isBufferGeometry && child.geometry.attributes.position) {
                             combinedElasticMeshes.push(child);
                             
-                            // Используем уже сохраненные originalVertices
+                // Reuse existing originalVertices
                             if (this.originalVertices.has(child)) {
                                 combinedOriginalVertices.set(child, this.originalVertices.get(child));
                             }
@@ -580,7 +553,7 @@ export class ModelService {
                 }
             });
             
-            // Отправляем объединенные данные в ElasticDeformationService
+        // Publish combined data
             EventBus.emit('modelLoaded', { 
                 model: this.model, 
                 elasticMeshes: combinedElasticMeshes,
