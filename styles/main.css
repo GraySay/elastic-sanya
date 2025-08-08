@@ -79,6 +79,10 @@ canvas {
     pointer-events: auto; /* Changed to auto */
     cursor: pointer;
 }
+/* Hide sound button on mobile */
+@media (max-width: 768px) {
+    .sound-button { display: none !important; }
+}
 /* Common styles for round buttons */
 .disco-button,
 .model-switch-button {

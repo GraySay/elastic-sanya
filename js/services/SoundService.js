@@ -13,6 +13,9 @@ export class SoundService {
         EventBus.on('soundButtonClick', this.handleSoundButtonClick.bind(this));
         EventBus.on('playPsxSound', this.playPsxSound.bind(this));
         EventBus.on('stopPsxSound', this.stopPsxSound.bind(this));
+    // Central audio unlock state
+    this.audioUnlocked = false;
+    this._unlockInProgress = false;
 
         this.camera = camera;
         if (this.camera) {
@@ -34,27 +37,96 @@ export class SoundService {
             // Disco background sound
             this.discoSound = this.createSound('assets/disco.mp3');
             this.discoSound.loop = true;
-            // Unlock HTMLAudio on first user interaction to avoid NotAllowedError
-            this.audioUnlocked = false;
+            // Disco control
             this.isFirstDiscoActivation = true;
-            const unlockAudio = (e) => {
-                // Don't interfere if this is disco button click
-                if (e.target && e.target.closest('.disco-button')) {
-                    this.audioUnlocked = true;
-                    return;
-                }
-                
-                this.discoSound.play().then(() => {
-                    this.discoSound.pause();
-                }).catch(() => {}).finally(() => {
-                    this.audioUnlocked = true;
-                });
-            };
-            document.addEventListener('click', unlockAudio, { once: true, passive: false });
-            document.addEventListener('touchstart', unlockAudio, { once: true, passive: false });
+            // Attach one-shot, non-intrusive first-gesture listeners on document
+            this._attachFirstGestureListeners();
             // Listen for disco mode toggle
             EventBus.on('discoModeToggle', this.handleDiscoMode.bind(this));
+            // Expose manual unlock if needed elsewhere (optional)
+            EventBus.on('tryUnlockAudio', () => this.tryUnlockAudio());
         }
+    }
+
+    // Public: attempts to unlock/resume the WebAudio context using a silent buffer
+    tryUnlockAudio() {
+        if (this.audioUnlocked || this._unlockInProgress) return;
+        const ctx = this.listener && this.listener.context;
+        if (!ctx) return;
+        this._unlockInProgress = true;
+        // Prime HTMLAudio immediately within the same trusted gesture stack
+        this._primeHtmlAudioOnceSync();
+        try {
+            // Create and play a 1-frame silent buffer to ensure audio graph starts
+            const sr = ctx.sampleRate || 44100;
+            const buffer = ctx.createBuffer(1, 1, sr);
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.connect(ctx.destination);
+            source.start(0);
+        } catch (_) {}
+        const finish = (ok) => {
+            this.audioUnlocked = !!ok;
+            this._unlockInProgress = false;
+            if (ok) this._detachFirstGestureListeners();
+        };
+        // Resume inside the same gesture stack if possible
+        try {
+            ctx.resume().then(() => {
+                // Fallback prime in case some elements didn't prime synchronously
+                this._primeHtmlAudioOnce();
+                finish(true);
+            }).catch(() => finish(false));
+        } catch (_) {
+            finish(false);
+        }
+    }
+
+    _primeHtmlAudioOnceSync() {
+        if (this._htmlPrimedSync) return;
+        this._htmlPrimedSync = true;
+        try {
+            [this.discoSound, this.releaseSoundHtml, this.burpSound, this.gagSound, this.psxSound]
+                .filter(Boolean)
+                .forEach(a => {
+                    const wasMuted = a.muted;
+                    a.muted = true;
+                    try { a.play().catch(() => {}); } catch (_) {}
+                    // Immediately pause and reset; the important part is the user-initiated play call
+                    try { a.pause(); } catch (_) {}
+                    try { a.currentTime = 0; } catch (_) {}
+                    a.muted = wasMuted;
+                });
+        } catch (_) {}
+    }
+
+    _primeHtmlAudioOnce() {
+        try {
+            [this.discoSound, this.releaseSoundHtml, this.burpSound, this.gagSound, this.psxSound]
+                .filter(Boolean)
+                .forEach(a => {
+                    a.play().then(() => a.pause()).catch(() => {});
+                });
+        } catch (_) {}
+    }
+
+    _attachFirstGestureListeners() {
+        if (this._firstGestureAttached) return;
+        this._firstGestureAttached = true;
+        this._firstGestureHandler = () => this.tryUnlockAudio();
+        // Minimal set, capture phase, no preventDefault or stopPropagation
+        ['pointerdown', 'touchstart', 'keydown'].forEach(type => {
+            const opts = type === 'touchstart' ? { capture: true, passive: true } : { capture: true };
+            document.addEventListener(type, this._firstGestureHandler, opts);
+        });
+    }
+
+    _detachFirstGestureListeners() {
+        if (!this._firstGestureAttached) return;
+        ['pointerdown', 'touchstart', 'keydown'].forEach(type => {
+            document.removeEventListener(type, this._firstGestureHandler, { capture: true });
+        });
+        this._firstGestureAttached = false;
     }
 
     loadInteractionSounds() {
@@ -72,8 +144,10 @@ export class SoundService {
 
     startStretch() {
         if (!this.listener) return;
+    // Attempt unlock right before any WebAudio playback
+    this.tryUnlockAudio();
         if (!this.audioInitialized) {
-            this.listener.context.resume();
+            // Expect unlock to have happened on mousedown/touchstart
             this.audioInitialized = true;
         }
         // Stop any currently playing stretch sound before playing a new one
@@ -97,6 +171,8 @@ export class SoundService {
     }
 
     stopStretch() {
+        // Ensure unlock on mouseup/touchend path
+        this.tryUnlockAudio();
         if (this.currentStretchSound && this.currentStretchSound.isPlaying) {
             this.currentStretchSound.stop();
             this.currentStretchSound = null;
@@ -104,7 +180,7 @@ export class SoundService {
         if (this.releaseSoundHtml) {
             this.releaseSoundHtml.pause();
             this.releaseSoundHtml.currentTime = 0;
-            this.releaseSoundHtml.play().catch(e => console.error('Release sound failed:', e));
+            this.releaseSoundHtml.play().catch(() => {});
         }
     }
 
@@ -128,6 +204,8 @@ export class SoundService {
     }
 
     playSound(sound) {
+    // Attempt unlock on explicit button press path
+    this.tryUnlockAudio();
         if (this.burpSound.isPlaying) this.burpSound.pause();
         if (this.gagSound.isPlaying) this.gagSound.pause();
         this.burpSound.currentTime = 0;
@@ -159,6 +237,8 @@ export class SoundService {
         if (!this.discoSound) return;
         
         if (isActive) {
+            // Attempt unlock from this click before play
+            this.tryUnlockAudio();
             // Handle first activation specially to avoid conflicts with unlock
             if (this.isFirstDiscoActivation && !this.audioUnlocked) {
                 // Wait a bit to avoid conflict with unlock audio
@@ -180,6 +260,7 @@ export class SoundService {
     // Play PSX sound when model switch button becomes active
     playPsxSound() {
         if (this.psxSound) {
+            this.tryUnlockAudio();
             this.psxSound.pause();
             this.psxSound.currentTime = 0;
             this.psxSound.play().catch(e => console.error('PSX sound failed:', e));

@@ -12,13 +12,14 @@ export class UIManager {
         this.isDiscoMode = false;
         this.isModelSwitchActive = false;
         this.isModelSwitching = false;
-    this.isSwipeAnimating = false; // Track swipe animation state
+        this.isSwipeAnimating = false; // Track swipe animation state
         this.mouse = new THREE.Vector2();
-        
-    // Disco mode optimization
+
+
+        // Disco mode optimization
         this.lastLetterUpdate = 0;
         this.wasDiscoMode = false;
-        
+
         // Pre-cache HSL colors to avoid expensive calculations
         this.colorCache = [];
         this.initColorCache();
@@ -70,12 +71,12 @@ export class UIManager {
     }
 
     addEventListeners() {
-        window.addEventListener('mousemove', (e) => this.onMouseMove(e));
-        window.addEventListener('mousedown', (e) => this.onMouseDown(e));
-        window.addEventListener('mouseup', () => this.onMouseUp());
-        window.addEventListener('touchstart', (e) => this.onMouseDown(e), { passive: true });
-        window.addEventListener('touchmove', (e) => this.onMouseMove(e), { passive: true });
-        window.addEventListener('touchend', this.onMouseUp.bind(this));
+    window.addEventListener('mousemove', (e) => this.onMouseMove(e));
+    window.addEventListener('mousedown', (e) => this.onMouseDown(e));
+    window.addEventListener('mouseup', () => this.onMouseUp());
+    window.addEventListener('touchstart', (e) => this.onMouseDown(e), { passive: true });
+    window.addEventListener('touchmove', (e) => this.onMouseMove(e), { passive: true });
+    window.addEventListener('touchend', this.onMouseUp.bind(this));
     }
 
     onMouseMove(event) {
@@ -84,12 +85,17 @@ export class UIManager {
 
         this.mouse.x = (clientX / window.innerWidth) * 2 - 1;
         this.mouse.y = -(clientY / window.innerHeight) * 2 + 1;
+
+    // Emit a generic user gesture event to unlock audio in the same call stack
+    EventBus.emit('userGesture');
         EventBus.emit('mouseMove', { mouse: this.mouse });
 
         this.checkUIInteraction(clientX, clientY);
     }
 
     onMouseDown(event) {
+    // Signal a user gesture immediately on press (counts for mobile unlock)
+        EventBus.emit('userGesture');
     // Update mouse position here too (order of events isn't guaranteed)
         const clientX = event.touches ? event.touches[0].clientX : event.clientX;
         const clientY = event.touches ? event.touches[0].clientY : event.clientY;
@@ -113,6 +119,7 @@ export class UIManager {
     }
 
     onMouseUp() {
+        EventBus.emit('userGesture');
         this.soundButton.classList.remove('active-imitation');
     // Clear hover on touch end to reset state
         if (this.hoveredUIElement && this.hoveredUIElement.classList.contains('letter')) {
