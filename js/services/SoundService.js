@@ -12,7 +12,7 @@ export class SoundService {
         this.lastClickTime = 0;
         EventBus.on('soundButtonClick', this.handleSoundButtonClick.bind(this));
         EventBus.on('playPsxSound', this.playPsxSound.bind(this));
-        EventBus.on('stopPsxSound', this.stopPsxSound.bind(this));
+    EventBus.on('stopPsxSound', this.stopPsxSound.bind(this));
     // Central audio unlock state
     this.audioUnlocked = false;
     this._unlockInProgress = false;
@@ -30,21 +30,18 @@ export class SoundService {
             // Track last stretch sound index to avoid repeats
             this.lastStretchIndex = -1;
 
-            this.audioInitialized = false;
+            // Load interaction sounds
             this.loadInteractionSounds();
             // HTML Audio for release sound for reliable playback
             this.releaseSoundHtml = this.createSound('assets/release.mp3');
             // Disco background sound
             this.discoSound = this.createSound('assets/disco.mp3');
             this.discoSound.loop = true;
-            // Disco control
-            this.isFirstDiscoActivation = true;
             // Attach one-shot, non-intrusive first-gesture listeners on document
             this._attachFirstGestureListeners();
             // Listen for disco mode toggle
             EventBus.on('discoModeToggle', this.handleDiscoMode.bind(this));
-            // Expose manual unlock if needed elsewhere (optional)
-            EventBus.on('tryUnlockAudio', () => this.tryUnlockAudio());
+            // Optional external unlock hook removed for simplicity
         }
     }
 
@@ -54,8 +51,7 @@ export class SoundService {
         const ctx = this.listener && this.listener.context;
         if (!ctx) return;
         this._unlockInProgress = true;
-        // Prime HTMLAudio immediately within the same trusted gesture stack
-        this._primeHtmlAudioOnceSync();
+        // Do NOT touch HTMLAudio before resume; keep gesture for WebAudio resume
         try {
             // Create and play a 1-frame silent buffer to ensure audio graph starts
             const sr = ctx.sampleRate || 44100;
@@ -68,12 +64,19 @@ export class SoundService {
         const finish = (ok) => {
             this.audioUnlocked = !!ok;
             this._unlockInProgress = false;
-            if (ok) this._detachFirstGestureListeners();
+            if (ok) {
+                this._detachFirstGestureListeners();
+            } else {
+                // Re-arm listeners to try again on the next gesture
+                this._detachFirstGestureListeners();
+                this._attachFirstGestureListeners();
+            }
         };
         // Resume inside the same gesture stack if possible
         try {
             ctx.resume().then(() => {
-                // Fallback prime in case some elements didn't prime synchronously
+                // Prime HTMLAudio elements after a successful resume
+                this._primeHtmlAudioOnceSync();
                 this._primeHtmlAudioOnce();
                 finish(true);
             }).catch(() => finish(false));
@@ -114,17 +117,19 @@ export class SoundService {
         if (this._firstGestureAttached) return;
         this._firstGestureAttached = true;
         this._firstGestureHandler = () => this.tryUnlockAudio();
-        // Minimal set on gesture end to avoid any subtle first-down interference
-        ['pointerup', 'touchend', 'keydown'].forEach(type => {
-            const opts = type === 'touchstart' ? { capture: true, passive: true } : { capture: true };
-            document.addEventListener(type, this._firstGestureHandler, opts);
-        });
+        // Use bubble phase and once:true so we attach to the actual activation
+        const add = (type, opts) => document.addEventListener(type, this._firstGestureHandler, opts);
+        add('mousedown', { once: true });
+        add('pointerdown', { once: true });
+        add('touchstart', { once: true, passive: true });
+        add('click', { once: true });
+        add('keydown', { once: true });
     }
 
     _detachFirstGestureListeners() {
         if (!this._firstGestureAttached) return;
-        ['pointerup', 'touchend', 'keydown'].forEach(type => {
-            document.removeEventListener(type, this._firstGestureHandler, { capture: true });
+        ['mousedown','pointerdown','touchstart','click','keydown'].forEach(type => {
+            document.removeEventListener(type, this._firstGestureHandler);
         });
         this._firstGestureAttached = false;
     }
@@ -144,12 +149,8 @@ export class SoundService {
 
     startStretch() {
         if (!this.listener) return;
-    // Attempt unlock right before any WebAudio playback
-    this.tryUnlockAudio();
-        if (!this.audioInitialized) {
-            // Expect unlock to have happened on mousedown/touchstart
-            this.audioInitialized = true;
-        }
+        // Attempt unlock right before any WebAudio playback (idempotent)
+        this.tryUnlockAudio();
         // Stop any currently playing stretch sound before playing a new one
         if (this.currentStretchSound && this.currentStretchSound.isPlaying) {
             this.currentStretchSound.stop();
@@ -171,8 +172,6 @@ export class SoundService {
     }
 
     stopStretch() {
-        // Ensure unlock on mouseup/touchend path
-        this.tryUnlockAudio();
         if (this.currentStretchSound && this.currentStretchSound.isPlaying) {
             this.currentStretchSound.stop();
             this.currentStretchSound = null;
@@ -220,11 +219,14 @@ export class SoundService {
     }
 
     playSound(sound) {
-        // Stop any counterpart sound
+        // Ensure unlock (runs in capture on first gesture)
+        this.tryUnlockAudio();
         if (this.burpSound && this.burpSound !== sound && this.burpSound.isPlaying) this.burpSound.pause();
         if (this.gagSound && this.gagSound !== sound && this.gagSound.isPlaying) this.gagSound.pause();
-        // Defer first playback until unlock settles (desktop first click)
-        this._playHtmlAudioAfterUnlock(sound);
+        try { sound.pause(); } catch(_) {}
+        try { sound.currentTime = 0; } catch(_) {}
+        sound.play().catch(() => {});
+        sound.isPlaying = true;
     }
 
     handleSoundButtonClick() {
@@ -249,20 +251,10 @@ export class SoundService {
         if (!this.discoSound) return;
         
         if (isActive) {
-            // Attempt unlock from this click before play
+            // Attempt unlock; should already be unlocked via capture listener
             this.tryUnlockAudio();
-            // Handle first activation specially to avoid conflicts with unlock
-            if (this.isFirstDiscoActivation && !this.audioUnlocked) {
-                // Wait a bit to avoid conflict with unlock audio
-                setTimeout(() => {
-                    this.discoSound.currentTime = 0;
-                    this.discoSound.play().catch(e => console.error('Disco sound failed:', e));
-                }, CONFIG.AUDIO_UNLOCK_DELAY);
-                this.isFirstDiscoActivation = false;
-            } else {
-                this.discoSound.currentTime = 0;
-                this.discoSound.play().catch(e => console.error('Disco sound failed:', e));
-            }
+            this.discoSound.currentTime = 0;
+            this.discoSound.play().catch(() => {});
         } else {
             this.discoSound.pause();
             this.discoSound.currentTime = 0;
@@ -272,7 +264,10 @@ export class SoundService {
     // Play PSX sound when model switch button becomes active
     playPsxSound() {
         if (this.psxSound) {
-            this._playHtmlAudioAfterUnlock(this.psxSound);
+            this.tryUnlockAudio();
+            try { this.psxSound.pause(); } catch(_) {}
+            try { this.psxSound.currentTime = 0; } catch(_) {}
+            this.psxSound.play().catch(() => {});
         }
     }
 
