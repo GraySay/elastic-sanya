@@ -203,16 +203,28 @@ export class SoundService {
         return sound;
     }
 
-    playSound(sound) {
-    // Attempt unlock on explicit button press path
-    this.tryUnlockAudio();
-        if (this.burpSound.isPlaying) this.burpSound.pause();
-        if (this.gagSound.isPlaying) this.gagSound.pause();
-        this.burpSound.currentTime = 0;
-        this.gagSound.currentTime = 0;
+    _playHtmlAudioAfterUnlock(audioEl) {
+        if (!audioEl) return;
+        this.tryUnlockAudio();
+        const playIt = () => {
+            try { audioEl.pause(); } catch(_) {}
+            try { audioEl.currentTime = 0; } catch(_) {}
+            audioEl.play().catch(() => {});
+            audioEl.isPlaying = true;
+        };
+        if (!this.audioUnlocked) {
+            setTimeout(playIt, CONFIG.AUDIO_UNLOCK_DELAY);
+        } else {
+            playIt();
+        }
+    }
 
-        sound.play().catch(e => console.error("Sound play failed:", e));
-        sound.isPlaying = true;
+    playSound(sound) {
+        // Stop any counterpart sound
+        if (this.burpSound && this.burpSound !== sound && this.burpSound.isPlaying) this.burpSound.pause();
+        if (this.gagSound && this.gagSound !== sound && this.gagSound.isPlaying) this.gagSound.pause();
+        // Defer first playback until unlock settles (desktop first click)
+        this._playHtmlAudioAfterUnlock(sound);
     }
 
     handleSoundButtonClick() {
@@ -260,10 +272,7 @@ export class SoundService {
     // Play PSX sound when model switch button becomes active
     playPsxSound() {
         if (this.psxSound) {
-            this.tryUnlockAudio();
-            this.psxSound.pause();
-            this.psxSound.currentTime = 0;
-            this.psxSound.play().catch(e => console.error('PSX sound failed:', e));
+            this._playHtmlAudioAfterUnlock(this.psxSound);
         }
     }
 
